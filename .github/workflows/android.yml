@@ -281,6 +281,6 @@ jobs:
           UPLOAD=$(curl -s -X POST -H "$AUTH" -H "Content-Type: application/vnd.android.package-archive" \
             --data-binary @build/ShadowAssassin-debug.apk \
             "https://uploads.github.com/repos/$REPO/releases/$RID/assets?name=ShadowAssassin-debug.apk")
-          echo "$UPLOAD" | grep -q '"name": "ShadowAssassin-debug.apk"' || { echo "ERROR: asset upload failed:"; echo "$UPLOAD"; exit 1; }
+          echo "$UPLOAD" | grep -q 'ShadowAssassin-debug.apk' || { echo "ERROR: asset upload failed:"; echo "$UPLOAD"; exit 1; }
           echo "APK published:"
           echo "https://github.com/$REPO/releases/download/latest/ShadowAssassin-debug.apk"
