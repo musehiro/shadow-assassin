@@ -1,295 +1,320 @@
 class_name ShadowLevels
 ## Original level definitions for Shadow Assassin.
-## Maps are 11 columns x 17 rows. Legend:
+## Maps are 11 columns x 17 rows, DENSE mazes: crates/walls everywhere,
+## corridors 1-2 tiles wide, no 3x3 open floor. Legend:
 ##   '#' wall   'X' crate (blocks movement + sight)   '.' floor
-##   'P' player start   'C' coin   'J' gem (worth 5)   'B' plant (decor, walkable)
+##   'P' player start   'C' coin   'J' gem (worth 5)   'B' bush/plant (walkable hiding spot)
 ## Guards are defined separately with spawn tile, patrol waypoints, speed, colour.
+## Optional fields (safe defaults -- old levels still load):
+##   level "theme": "warehouse" (L1-12) | "cyber" (L13-25) | "lab" (L26-37)
+##     | "prison" (L38-50). Guard "type": "basic" (L1-2) | "rifle" (from L3)
+##     | "shotgun" (from L5) | "grenade" (from L8) | "sniper" (from L20,
+##     longer narrower cone) | "shielded" (from L30). Level "traps" (from
+##     L15): [{"pos": Vector2i, "kind": "bomb"|"cryo"}] -- sparse, never
+##     unavoidable. Levels 1-10 below were produced by tools/gen_levels.py
+##     (deterministic seeds; fragment in tools/levels_1_10_fragment.gd).
 
 static func get_levels() -> Array:
 	var all: Array = [
 		{
 			"name": "First Shadows",
-			"hint": "Tap a floor tile to move. Tap a guard to sneak up behind them!",
+			"hint": "Tap a floor tile to move. Strike a guard from behind!",
+			"theme": "warehouse",
 			"map": [
 				"###########",
-				"#.........#",
-				"#..C......#",
-				"#.........#",
-				"#....#....#",
-				"#....#..C.#",
-				"#.........#",
-				"#..P......#",
-				"#.........#",
-				"#.........#",
-				"#..C......#",
-				"#....#....#",
-				"#....#....#",
-				"#.........#",
-				"#......C..#",
-				"#.........#",
+				"#X##.C..C.#",
+				"#X...X..XX#",
+				"#.B..C..X.#",
+				"#..X....B.#",
+				"#J...X.X..#",
+				"#.X.XC.#..#",
+				"#...X..#B.#",
+				"#XX...XX..#",
+				"#.###.....#",
+				"#..##CXCXX#",
+				"#..##XX...#",
+				"#X..###..X#",
+				"#....##..P#",
+				"#..X......#",
+				"#..CX.XX.X#",
 				"###########",
 			],
 			"guards": [
-				{"pos": Vector2i(5, 9), "patrol": [Vector2i(5, 9), Vector2i(8, 9), Vector2i(8, 6), Vector2i(5, 6)], "speed": 1.1, "color": "orange"},
+				{"pos": Vector2i(4, 4), "patrol": [Vector2i(4, 4), Vector2i(5, 4), Vector2i(6, 4), Vector2i(7, 4)], "speed": 1.1, "color": "green", "type": "basic", "vision": 3.0, "half": 40.0},
+				{"pos": Vector2i(1, 7), "patrol": [Vector2i(1, 7), Vector2i(3, 7)], "speed": 1.1, "color": "green", "type": "basic", "vision": 3.0, "half": 40.0},
 			],
 		},
 		{
 			"name": "Two Watchers",
-			"hint": "Two guards now. Watch the yellow vision cones!",
+			"hint": "Three guards now. Watch the yellow vision cones!",
+			"theme": "warehouse",
 			"map": [
 				"###########",
-				"#....C....#",
-				"#.###.###.#",
-				"#.........#",
-				"#.C.....C.#",
-				"#..#####..#",
-				"#.........#",
-				"#..P...J..#",
-				"#.........#",
-				"#.#######.#",
-				"#.........#",
-				"#..C....C.#",
-				"#.........#",
-				"#..###.##.#",
-				"#.........#",
-				"#....C....#",
+				"#......BCX#",
+				"#X.#.X.#..#",
+				"#.X#.C.####",
+				"#..#.XX#..#",
+				"#..#...#X.#",
+				"#.X#.XB#..#",
+				"#.X#.B.#..#",
+				"#...#.###.#",
+				"#C.#.CX#..#",
+				"#X.#...#..#",
+				"#....X....#",
+				"#.X....####",
+				"#..C.PX#JX#",
+				"#.X#.XX...#",
+				"#C...C....#",
 				"###########",
 			],
 			"guards": [
-				{"pos": Vector2i(2, 3), "patrol": [Vector2i(2, 3), Vector2i(8, 3)], "speed": 1.2, "color": "orange"},
-				{"pos": Vector2i(8, 15), "patrol": [Vector2i(8, 15), Vector2i(2, 15)], "speed": 1.2, "color": "purple"},
+				{"pos": Vector2i(4, 3), "patrol": [Vector2i(4, 3), Vector2i(4, 5)], "speed": 1.22, "color": "green", "type": "basic", "vision": 3.03, "half": 40.3},
+				{"pos": Vector2i(9, 6), "patrol": [Vector2i(9, 6), Vector2i(9, 10)], "speed": 1.22, "color": "green", "type": "basic", "vision": 3.03, "half": 40.3},
+				{"pos": Vector2i(6, 11), "patrol": [Vector2i(6, 11), Vector2i(7, 11), Vector2i(8, 11)], "speed": 1.17, "color": "green", "type": "basic", "vision": 3.03, "half": 40.3},
 			],
 		},
 		{
 			"name": "Garden Patrol",
-			"hint": "Crates block sight. Hide behind them!",
+			"hint": "Two guards patrol side by side. Strike them both for a Double Kill!",
+			"theme": "warehouse",
 			"map": [
 				"###########",
-				"#..C...C..#",
-				"#.B.....B.#",
-				"#.........#",
-				"#..XX...X.#",
-				"#.........#",
-				"#....C....#",
-				"#..P......#",
-				"#....#....#",
-				"#....#..C.#",
-				"#.........#",
-				"#.X.....X.#",
-				"#.........#",
-				"#..C...C..#",
-				"#.B.....B.#",
-				"#....J....#",
+				"#.BBCC....#",
+				"#.C....X..#",
+				"###.#.#####",
+				"#.CXX.....#",
+				"#......C.X#",
+				"##.#####.X#",
+				"#.....##.X#",
+				"#...XX....#",
+				"##..#####.#",
+				"#..XX.....#",
+				"#.XXC.....#",
+				"#C#########",
+				"#.......J.#",
+				"#.X..#X.X.#",
+				"#...B#X.P.#",
 				"###########",
 			],
 			"guards": [
-				{"pos": Vector2i(3, 5), "patrol": [Vector2i(3, 5), Vector2i(8, 5)], "speed": 1.3, "color": "blue"},
-				{"pos": Vector2i(8, 12), "patrol": [Vector2i(8, 12), Vector2i(3, 12)], "speed": 1.3, "color": "green"},
+				{"pos": Vector2i(6, 10), "patrol": [Vector2i(6, 10), Vector2i(7, 10), Vector2i(8, 10), Vector2i(9, 10)], "speed": 1.23, "color": "orange", "type": "rifle", "vision": 3.07, "half": 40.6},
+				{"pos": Vector2i(6, 11), "patrol": [Vector2i(6, 11), Vector2i(7, 11), Vector2i(8, 11), Vector2i(9, 11)], "speed": 1.23, "color": "orange", "type": "rifle", "vision": 3.07, "half": 40.6},
+				{"pos": Vector2i(2, 13), "patrol": [Vector2i(2, 13), Vector2i(3, 13), Vector2i(4, 13), Vector2i(5, 13), Vector2i(6, 13), Vector2i(7, 13)], "speed": 1.28, "color": "orange", "type": "rifle", "vision": 3.07, "half": 40.6},
 			],
 		},
 		{
 			"name": "The Courtyard",
-			"hint": "Three guards. Strike when a guard walks away from you.",
+			"hint": "Four guards. Strike when a guard walks away from you.",
+			"theme": "warehouse",
 			"map": [
 				"###########",
-				"#..C...C..#",
+				"####X.J.X.#",
+				"#X........#",
+				"#..#..X##.#",
+				"#.C##..##.#",
+				"#X.....CX.#",
+				"#X..X#..X.#",
+				"#..X.#.CB.#",
+				"#..XC#BX..#",
+				"#CX..#....#",
 				"#.........#",
-				"#.##...##.#",
-				"#.........#",
-				"#..C...C..#",
-				"#....#....#",
-				"#..P..#...#",
-				"#....#....#",
-				"#.........#",
-				"#.##...##.#",
-				"#.........#",
-				"#..C...C..#",
-				"#.........#",
-				"#..J...J..#",
-				"#.........#",
+				"#......XXX#",
+				"#X.##C....#",
+				"#X.##XX####",
+				"#.....CC.##",
+				"#.X...X.P##",
 				"###########",
 			],
 			"guards": [
-				{"pos": Vector2i(2, 4), "patrol": [Vector2i(2, 4), Vector2i(8, 4)], "speed": 1.3, "color": "orange"},
-				{"pos": Vector2i(8, 9), "patrol": [Vector2i(8, 9), Vector2i(2, 9)], "speed": 1.3, "color": "purple"},
-				{"pos": Vector2i(5, 13), "patrol": [Vector2i(5, 13), Vector2i(5, 15)], "speed": 1.4, "color": "blue"},
+				{"pos": Vector2i(2, 2), "patrol": [Vector2i(2, 2), Vector2i(3, 2), Vector2i(4, 2), Vector2i(5, 2), Vector2i(6, 2)], "speed": 1.35, "color": "orange", "type": "rifle", "vision": 3.1, "half": 40.9},
+				{"pos": Vector2i(7, 9), "patrol": [Vector2i(7, 9), Vector2i(9, 9)], "speed": 1.3, "color": "orange", "type": "rifle", "vision": 3.1, "half": 40.9},
+				{"pos": Vector2i(1, 11), "patrol": [Vector2i(1, 11), Vector2i(5, 11)], "speed": 1.25, "color": "orange", "type": "rifle", "vision": 3.1, "half": 40.9},
+				{"pos": Vector2i(2, 5), "patrol": [Vector2i(2, 5), Vector2i(5, 5)], "speed": 1.25, "color": "orange", "type": "rifle", "vision": 3.1, "half": 40.9},
 			],
 		},
 		{
 			"name": "Crossroads",
 			"hint": "Faster guards. If one spots you, break line of sight!",
+			"theme": "warehouse",
 			"map": [
 				"###########",
-				"#..C...C..#",
-				"#....X....#",
-				"#.X.....X.#",
-				"#.........#",
-				"#..##.##..#",
-				"#....C....#",
-				"#..P...J..#",
-				"#.........#",
-				"#..##.##..#",
-				"#.........#",
-				"#.X.....X.#",
-				"#....X....#",
-				"#..C...C..#",
-				"#....C....#",
-				"#..J...C..#",
+				"#X.XX##.C.#",
+				"#...CXXXC.#",
+				"#BX.X..X..#",
+				"#B..J.X...#",
+				"#.C#X#X#..#",
+				"#..#.C.#..#",
+				"#.....XBC.#",
+				"#..#...#..#",
+				"#.X..X..XC#",
+				"#.X#...C..#",
+				"#..#.#.#..#",
+				"#.##XX###.#",
+				"#X##......#",
+				"#XX.....X.#",
+				"#...X.X.P.#",
 				"###########",
 			],
 			"guards": [
-				{"pos": Vector2i(2, 4), "patrol": [Vector2i(2, 4), Vector2i(8, 4)], "speed": 1.4, "color": "orange"},
-				{"pos": Vector2i(3, 11), "patrol": [Vector2i(3, 11), Vector2i(7, 11)], "speed": 1.4, "color": "purple"},
-				{"pos": Vector2i(8, 7), "patrol": [Vector2i(8, 7), Vector2i(8, 4)], "speed": 1.5, "color": "blue"},
+				{"pos": Vector2i(3, 2), "patrol": [Vector2i(3, 2), Vector2i(3, 3), Vector2i(3, 4)], "speed": 1.31, "color": "orange", "type": "rifle", "vision": 3.13, "half": 41.2},
+				{"pos": Vector2i(1, 6), "patrol": [Vector2i(1, 6), Vector2i(1, 7), Vector2i(1, 8), Vector2i(1, 9), Vector2i(1, 10)], "speed": 1.31, "color": "pink", "type": "shotgun", "vision": 3.13, "half": 41.2},
+				{"pos": Vector2i(4, 13), "patrol": [Vector2i(4, 13), Vector2i(9, 13)], "speed": 1.36, "color": "orange", "type": "rifle", "vision": 3.13, "half": 41.2},
+				{"pos": Vector2i(9, 1), "patrol": [Vector2i(9, 1), Vector2i(9, 4)], "speed": 1.41, "color": "pink", "type": "shotgun", "vision": 3.13, "half": 41.2},
 			],
 		},
 		{
 			"name": "Golden Hall",
 			"hint": "Four guards guard the gold. Patience wins.",
+			"theme": "warehouse",
 			"map": [
 				"###########",
-				"#..C...C..#",
-				"#.##...##.#",
-				"#.........#",
-				"#..C...C..#",
-				"#....X....#",
-				"#....X..J.#",
-				"#..P......#",
-				"#....X....#",
-				"#....X....#",
-				"#..C...C..#",
-				"#.........#",
-				"#.##...##.#",
-				"#..C...C..#",
-				"#....J....#",
-				"#.........#",
+				"#...X.C...#",
+				"#.X.X..X..#",
+				"#.C.......#",
+				"#X..X.X##.#",
+				"#.....XX###",
+				"#X.JXX.####",
+				"#XX....#C.#",
+				"#...X.....#",
+				"#XX..BX...#",
+				"###C..X..X#",
+				"##X.X..CXX#",
+				"##C.X.X..X#",
+				"#....BCXX.#",
+				"#B.....P..#",
+				"#.XCX.X...#",
 				"###########",
 			],
 			"guards": [
-				{"pos": Vector2i(2, 3), "patrol": [Vector2i(2, 3), Vector2i(8, 3)], "speed": 1.4, "color": "orange"},
-				{"pos": Vector2i(8, 10), "patrol": [Vector2i(8, 10), Vector2i(2, 10)], "speed": 1.4, "color": "purple"},
-				{"pos": Vector2i(5, 13), "patrol": [Vector2i(5, 13), Vector2i(5, 15)], "speed": 1.5, "color": "blue"},
-				{"pos": Vector2i(8, 7), "patrol": [Vector2i(8, 7), Vector2i(8, 3)], "speed": 1.5, "color": "green"},
+				{"pos": Vector2i(5, 2), "patrol": [Vector2i(5, 2), Vector2i(5, 3), Vector2i(5, 4), Vector2i(5, 5)], "speed": 1.38, "color": "orange", "type": "rifle", "vision": 3.17, "half": 41.5},
+				{"pos": Vector2i(5, 8), "patrol": [Vector2i(5, 8), Vector2i(6, 8), Vector2i(7, 8)], "speed": 1.43, "color": "pink", "type": "shotgun", "vision": 3.17, "half": 41.5},
+				{"pos": Vector2i(1, 13), "patrol": [Vector2i(1, 13), Vector2i(2, 13), Vector2i(3, 13), Vector2i(4, 13)], "speed": 1.38, "color": "orange", "type": "rifle", "vision": 3.17, "half": 41.5},
+				{"pos": Vector2i(3, 1), "patrol": [Vector2i(3, 1), Vector2i(3, 5)], "speed": 1.48, "color": "pink", "type": "shotgun", "vision": 3.17, "half": 41.5},
 			],
 		},
 		{
 			"name": "The Maze",
 			"hint": "A maze of walls. Use corners to stay unseen.",
+			"theme": "warehouse",
 			"map": [
 				"###########",
-				"#..C...C..#",
-				"#.#####.#.#",
-				"#.....#...#",
-				"#.###.#.###",
-				"#...#..C..#",
-				"#.###.###.#",
-				"#.....#...#",
-				"#.P...#.J.#",
-				"#..##.#...#",
-				"#..C..###.#",
-				"#.####....#",
-				"#..C.#.##.#",
-				"#..C...#C.#",
-				"#..J....C.#",
-				"#....#....#",
+				"#...C.....#",
+				"#..#XX.#..#",
+				"#X.#.XB#..#",
+				"#XX#.###..#",
+				"#....#.#..#",
+				"#XX#...#..#",
+				"#X...XJ...#",
+				"#..#X###XC#",
+				"#XC#...#X.#",
+				"#XBB.X.#C.#",
+				"#CX#CCC#..#",
+				"#..#X...C.#",
+				"#..#.....X#",
+				"#.X.X..#.X#",
+				"#...P.....#",
 				"###########",
 			],
 			"guards": [
-				{"pos": Vector2i(2, 7), "patrol": [Vector2i(2, 7), Vector2i(5, 7)], "speed": 1.5, "color": "orange"},
-				{"pos": Vector2i(8, 9), "patrol": [Vector2i(8, 9), Vector2i(8, 7)], "speed": 1.5, "color": "purple"},
-				{"pos": Vector2i(3, 13), "patrol": [Vector2i(3, 13), Vector2i(3, 15)], "speed": 1.6, "color": "blue"},
-				{"pos": Vector2i(8, 1), "patrol": [Vector2i(8, 1), Vector2i(3, 1)], "speed": 1.6, "color": "green"},
+				{"pos": Vector2i(9, 2), "patrol": [Vector2i(9, 2), Vector2i(9, 5)], "speed": 1.49, "color": "orange", "type": "rifle", "vision": 3.2, "half": 41.9},
+				{"pos": Vector2i(2, 7), "patrol": [Vector2i(2, 7), Vector2i(3, 7), Vector2i(4, 7)], "speed": 1.54, "color": "pink", "type": "shotgun", "vision": 3.2, "half": 41.9},
+				{"pos": Vector2i(1, 12), "patrol": [Vector2i(1, 12), Vector2i(1, 13), Vector2i(1, 14), Vector2i(1, 15)], "speed": 1.44, "color": "orange", "type": "rifle", "vision": 3.2, "half": 41.9},
+				{"pos": Vector2i(2, 5), "patrol": [Vector2i(2, 5), Vector2i(4, 5)], "speed": 1.54, "color": "pink", "type": "shotgun", "vision": 3.2, "half": 41.9},
+				{"pos": Vector2i(7, 7), "patrol": [Vector2i(7, 7), Vector2i(9, 7)], "speed": 1.49, "color": "orange", "type": "rifle", "vision": 3.2, "half": 41.9},
 			],
 		},
 		{
 			"name": "Night Watch",
 			"hint": "Five guards on night watch. Move like a shadow.",
+			"theme": "warehouse",
 			"map": [
 				"###########",
-				"#..C...C..#",
+				"#......X.X#",
+				"#X.XX...C.#",
+				"##..#####.#",
+				"#....X..#.#",
+				"#.....X...#",
+				"####CCX####",
 				"#.........#",
-				"#.##.#.##.#",
-				"#.........#",
-				"#..C...C..#",
-				"#.C..X....#",
-				"#..P..X...#",
-				"#....X....#",
-				"#.........#",
-				"#.##.#.##.#",
-				"#.........#",
-				"#..C...C..#",
-				"#....J....#",
-				"#..C...JC.#",
-				"#....J....#",
+				"#....C....#",
+				"#.###.J####",
+				"#X.CXX....#",
+				"##....XXB.#",
+				"#####.###.#",
+				"#P.CCBC.#.#",
+				"#.X.X....C#",
+				"#.....X.#.#",
 				"###########",
 			],
 			"guards": [
-				{"pos": Vector2i(2, 4), "patrol": [Vector2i(2, 4), Vector2i(8, 4)], "speed": 1.5, "color": "orange"},
-				{"pos": Vector2i(8, 9), "patrol": [Vector2i(8, 9), Vector2i(2, 9)], "speed": 1.5, "color": "purple"},
-				{"pos": Vector2i(5, 12), "patrol": [Vector2i(5, 12), Vector2i(5, 14)], "speed": 1.6, "color": "blue"},
-				{"pos": Vector2i(8, 1), "patrol": [Vector2i(8, 1), Vector2i(2, 1)], "speed": 1.6, "color": "green"},
-				{"pos": Vector2i(2, 15), "patrol": [Vector2i(2, 15), Vector2i(8, 15)], "speed": 1.7, "color": "pink"},
+				{"pos": Vector2i(1, 1), "patrol": [Vector2i(1, 1), Vector2i(2, 1), Vector2i(3, 1)], "speed": 1.61, "color": "orange", "type": "rifle", "vision": 3.23, "half": 42.2},
+				{"pos": Vector2i(3, 7), "patrol": [Vector2i(3, 7), Vector2i(8, 7)], "speed": 1.56, "color": "pink", "type": "shotgun", "vision": 3.23, "half": 42.2},
+				{"pos": Vector2i(1, 15), "patrol": [Vector2i(1, 15), Vector2i(3, 15)], "speed": 1.61, "color": "blue", "type": "grenade", "vision": 3.23, "half": 42.2},
+				{"pos": Vector2i(1, 4), "patrol": [Vector2i(1, 4), Vector2i(3, 4)], "speed": 1.56, "color": "orange", "type": "rifle", "vision": 3.23, "half": 42.2},
+				{"pos": Vector2i(7, 10), "patrol": [Vector2i(7, 10), Vector2i(9, 10)], "speed": 1.56, "color": "pink", "type": "shotgun", "vision": 3.23, "half": 42.2},
 			],
 		},
 		{
 			"name": "Royal Guard",
 			"hint": "The royal guard never rests. Time every step.",
+			"theme": "warehouse",
 			"map": [
 				"###########",
-				"#..C...C..#",
-				"#.#####.#.#",
-				"#.......#.#",
-				"#.###.#..J#",
-				"#...#.#.###",
-				"#.###.#...#",
-				"#.C...###.#",
-				"#..P..#...#",
-				"#..###.##.#",
-				"#.......#.#",
-				"#.####.#..#",
-				"#.C..#..C.#",
-				"#..C...C..#",
-				"#..J...J..#",
-				"#..C...CC.#",
+				"#....B..XX#",
+				"#....X...X#",
+				"#.J#B.C##.#",
+				"#.X######.#",
+				"#.....CB..#",
+				"#X.C..XX..#",
+				"#X.CX..X.C#",
+				"#...X...XJ#",
+				"#X..#.CX..#",
+				"#.C.#.XX.C#",
+				"#.###X.X..#",
+				"#.X##...#.#",
+				"#.X##..##.#",
+				"#..PX.X.X.#",
+				"#.X.XC....#",
 				"###########",
 			],
 			"guards": [
-				{"pos": Vector2i(2, 3), "patrol": [Vector2i(2, 3), Vector2i(7, 3)], "speed": 1.6, "color": "orange"},
-				{"pos": Vector2i(8, 6), "patrol": [Vector2i(8, 6), Vector2i(5, 6)], "speed": 1.6, "color": "purple"},
-				{"pos": Vector2i(2, 10), "patrol": [Vector2i(2, 10), Vector2i(7, 10)], "speed": 1.7, "color": "blue"},
-				{"pos": Vector2i(5, 13), "patrol": [Vector2i(5, 13), Vector2i(5, 15)], "speed": 1.7, "color": "green"},
-				{"pos": Vector2i(8, 1), "patrol": [Vector2i(8, 1), Vector2i(3, 1)], "speed": 1.8, "color": "pink"},
+				{"pos": Vector2i(6, 2), "patrol": [Vector2i(6, 2), Vector2i(8, 2)], "speed": 1.67, "color": "orange", "type": "rifle", "vision": 3.26, "half": 42.5},
+				{"pos": Vector2i(1, 8), "patrol": [Vector2i(1, 8), Vector2i(3, 8)], "speed": 1.57, "color": "pink", "type": "shotgun", "vision": 3.26, "half": 42.5},
+				{"pos": Vector2i(9, 11), "patrol": [Vector2i(9, 11), Vector2i(9, 12), Vector2i(9, 13), Vector2i(9, 14), Vector2i(9, 15)], "speed": 1.62, "color": "blue", "type": "grenade", "vision": 3.26, "half": 42.5},
+				{"pos": Vector2i(1, 1), "patrol": [Vector2i(1, 1), Vector2i(1, 5)], "speed": 1.67, "color": "orange", "type": "rifle", "vision": 3.26, "half": 42.5},
+				{"pos": Vector2i(5, 8), "patrol": [Vector2i(5, 8), Vector2i(6, 8), Vector2i(7, 8)], "speed": 1.62, "color": "pink", "type": "shotgun", "vision": 3.26, "half": 42.5},
 			],
 		},
 		{
 			"name": "Shadow Master",
 			"hint": "Six guards. One shadow. Prove you are the master.",
+			"theme": "warehouse",
 			"map": [
 				"###########",
-				"#..C...C..#",
-				"#.##...##.#",
-				"#.........#",
-				"#..C...C..#",
-				"#..#####..#",
-				"#.C.....C.#",
-				"#..P..J...#",
-				"#.........#",
-				"#..#####..#",
-				"#.C.....C.#",
-				"#.##...##.#",
-				"#..C...C..#",
-				"#..J...J..#",
-				"#..C...C..#",
-				"#....J....#",
+				"#X.C.XX..X#",
+				"#C.XXX.BXX#",
+				"#...BC.X###",
+				"#XX....X###",
+				"#.X#.#....#",
+				"#C.#...#XX#",
+				"#..##...#C#",
+				"#...B..C#.#",
+				"#..#.X..C.#",
+				"#..#...#XX#",
+				"#..#J##...#",
+				"#X.C.C.X..#",
+				"#P.XCX..J.#",
+				"#....X.#X.#",
+				"#...XX.#..#",
 				"###########",
 			],
 			"guards": [
-				{"pos": Vector2i(2, 3), "patrol": [Vector2i(2, 3), Vector2i(8, 3)], "speed": 1.7, "color": "orange"},
-				{"pos": Vector2i(8, 7), "patrol": [Vector2i(8, 7), Vector2i(2, 7)], "speed": 1.7, "color": "purple"},
-				{"pos": Vector2i(2, 12), "patrol": [Vector2i(2, 12), Vector2i(8, 12)], "speed": 1.8, "color": "blue"},
-				{"pos": Vector2i(5, 13), "patrol": [Vector2i(5, 13), Vector2i(5, 15)], "speed": 1.8, "color": "green"},
-				{"pos": Vector2i(8, 1), "patrol": [Vector2i(8, 1), Vector2i(2, 1)], "speed": 1.9, "color": "pink"},
-				{"pos": Vector2i(8, 14), "patrol": [Vector2i(8, 14), Vector2i(2, 14)], "speed": 1.9, "color": "orange"},
+				{"pos": Vector2i(6, 5), "patrol": [Vector2i(6, 5), Vector2i(7, 5), Vector2i(8, 5)], "speed": 1.64, "color": "orange", "type": "rifle", "vision": 3.3, "half": 42.8},
+				{"pos": Vector2i(2, 6), "patrol": [Vector2i(2, 6), Vector2i(2, 7), Vector2i(2, 8)], "speed": 1.64, "color": "pink", "type": "shotgun", "vision": 3.3, "half": 42.8},
+				{"pos": Vector2i(7, 11), "patrol": [Vector2i(7, 11), Vector2i(9, 11)], "speed": 1.74, "color": "blue", "type": "grenade", "vision": 3.3, "half": 42.8},
+				{"pos": Vector2i(3, 4), "patrol": [Vector2i(3, 4), Vector2i(4, 4), Vector2i(5, 4)], "speed": 1.69, "color": "orange", "type": "rifle", "vision": 3.3, "half": 42.8},
+				{"pos": Vector2i(4, 10), "patrol": [Vector2i(4, 10), Vector2i(5, 10), Vector2i(6, 10)], "speed": 1.64, "color": "pink", "type": "shotgun", "vision": 3.3, "half": 42.8},
+				{"pos": Vector2i(6, 13), "patrol": [Vector2i(6, 13), Vector2i(6, 14), Vector2i(6, 15)], "speed": 1.74, "color": "blue", "type": "grenade", "vision": 3.3, "half": 42.8},
 			],
 		},
 	]
@@ -300,7 +325,9 @@ static func get_levels() -> Array:
 
 static func validate() -> Array:
 	"""Check every level: 17 rows of 11 chars, one P, all coins/gems and
-	guard patrol waypoints reachable from P. Returns a list of problems."""
+	guard patrol-route tiles reachable from P, clean player start, an
+	approach window for every guard, dense-maze shape, fair traps, and
+	valid optional type/theme fields. Returns a list of problems."""
 	var problems: Array = []
 	var levels: Array = get_levels()
 	for li in range(levels.size()):
@@ -309,6 +336,22 @@ static func validate() -> Array:
 		if map.size() != 17:
 			problems.append("L%d: %d rows (want 17)" % [li + 1, map.size()])
 			continue
+		# Optional fields: theme + guard types must be known values.
+		var theme: String = String(lv.get("theme", "warehouse"))
+		if theme not in ["warehouse", "cyber", "lab", "prison"]:
+			problems.append("L%d: unknown theme %s" % [li + 1, theme])
+		for g in lv["guards"]:
+			var gtype: String = String(g.get("type", "basic"))
+			if gtype not in ["basic", "rifle", "shotgun", "grenade", "sniper", "shielded"]:
+				problems.append("L%d: unknown guard type %s" % [li + 1, gtype])
+		# Patrol routes (full walked segments, not just waypoints).
+		var all_route := {}
+		for g in lv["guards"]:
+			for t in _patrol_route_tiles(g["patrol"]):
+				all_route[t] = true
+		var trap_tiles := {}
+		for t in lv.get("traps", []):
+			trap_tiles[t["pos"]] = true
 		var start := Vector2i(-1, -1)
 		var goals: Array = []
 		for y in range(17):
@@ -326,7 +369,7 @@ static func validate() -> Array:
 			continue
 		for g in lv["guards"]:
 			goals.append(g["pos"])
-			for wp in g["patrol"]:
+			for wp in _patrol_route_tiles(g["patrol"]):
 				goals.append(wp)
 		# BFS over walkable tiles ('#' and 'X' block)
 		var seen := {}
@@ -348,11 +391,66 @@ static func validate() -> Array:
 		for goal in goals:
 			if not seen.has(goal):
 				problems.append("L%d: unreachable tile %s" % [li + 1, str(goal)])
+		# Dense-maze shape: blocked fraction >= 0.30 and no 3x3 open floor.
+		var blocked := 0
+		for y in range(1, 16):
+			for x in range(1, 10):
+				if map[y][x] == "#" or map[y][x] == "X":
+					blocked += 1
+		if float(blocked) / 135.0 < 0.30:
+			problems.append("L%d: density %.2f < 0.30" % [li + 1, float(blocked) / 135.0])
+		var open_found := false
+		for y in range(1, 14):
+			for x in range(1, 8):
+				var all_open := true
+				for dy in range(3):
+					for dx in range(3):
+						if map[y + dy][x + dx] == "#" or map[y + dy][x + dx] == "X":
+							all_open = false
+				if all_open:
+					problems.append("L%d: 3x3 open floor at (%d, %d)" % [li + 1, x, y])
+					open_found = true
+					break
+			if open_found:
+				break
+		# Trap fairness: traps on walkable floor, off routes, away from
+		# the start, and every goal still reachable avoiding all traps.
+		for t in lv.get("traps", []):
+			var tp: Vector2i = t["pos"]
+			if map[tp.y][tp.x] == "#" or map[tp.y][tp.x] == "X":
+				problems.append("L%d: trap on unwalkable tile %s" % [li + 1, str(tp)])
+			if all_route.has(tp):
+				problems.append("L%d: trap on patrol route %s" % [li + 1, str(tp)])
+			if maxi(absi(tp.x - start.x), absi(tp.y - start.y)) <= 1:
+				problems.append("L%d: trap next to player start %s" % [li + 1, str(tp)])
+		if not trap_tiles.is_empty():
+			var seen_safe := {}
+			var q2: Array = [start]
+			seen_safe[start] = true
+			while not q2.is_empty():
+				var cur2: Vector2i = q2.pop_front()
+				for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+					var nb2: Vector2i = cur2 + d
+					if nb2.x < 0 or nb2.y < 0 or nb2.x >= 11 or nb2.y >= 17:
+						continue
+					if seen_safe.has(nb2) or trap_tiles.has(nb2):
+						continue
+					var ch2: String = map[nb2.y][nb2.x]
+					if ch2 == "#" or ch2 == "X":
+						continue
+					seen_safe[nb2] = true
+					q2.append(nb2)
+			for goal in goals:
+				if not seen_safe.has(goal):
+					problems.append("L%d: goal %s only reachable through a trap" % [li + 1, str(goal)])
+					break
 		# Vision-cone checks (mirror of tools/gen_levels.py):
-		#  - clean start: player start outside every cone at t=0
+		#  - clean start: player start outside every cone at t=0 AND not
+		#    on/adjacent to any patrol route tile
 		#  - approach window: every guard has a patrol waypoint where a
-		#    walkable neighbour tile is outside EVERY guard's cone, so the
-		#    player always has a timing window to strike from behind.
+		#    walkable neighbour tile (not on any route, not a trap) is
+		#    outside EVERY guard's cone, so the player always has a
+		#    timing window to strike from behind.
 		var snap: Array = []
 		for g in lv["guards"]:
 			var patrol: Array = g["patrol"]
@@ -362,9 +460,13 @@ static func validate() -> Array:
 				"vision": float(g.get("vision", 3.67)),
 				"half": deg_to_rad(float(g.get("half", 45.0))),
 			})
-		for s in snap:
-			if _tile_visible(map, s["pos"], s["facing"], s["vision"], s["half"], start):
+		for sn in snap:
+			if _tile_visible(map, sn["pos"], sn["facing"], sn["vision"], sn["half"], start):
 				problems.append("L%d: player start inside a vision cone at t=0" % [li + 1])
+				break
+		for rt in all_route:
+			if maxi(absi(rt.x - start.x), absi(rt.y - start.y)) <= 1:
+				problems.append("L%d: player start on/adjacent to patrol route at %s" % [li + 1, str(rt)])
 				break
 		for gi in range(lv["guards"].size()):
 			var g: Dictionary = lv["guards"][gi]
@@ -381,6 +483,8 @@ static func validate() -> Array:
 						continue
 					var ch: String = map[nb.y][nb.x]
 					if ch == "#" or ch == "X":
+						continue
+					if all_route.has(nb) or trap_tiles.has(nb):
 						continue
 					if _tile_visible(map, w, facing, g_vision, g_half, nb):
 						continue
@@ -400,6 +504,39 @@ static func validate() -> Array:
 			if not has_window:
 				problems.append("L%d: guard %d has no approach window" % [li + 1, gi])
 	return problems
+
+
+static func _patrol_route_tiles(patrol: Array) -> Array:
+	"""Every tile a guard walks on: the straight segments between
+	consecutive waypoints (the guard ping-pongs along them)."""
+	var tiles: Array = []
+	var seen := {}
+	for k in range(patrol.size() - 1):
+		var a: Vector2i = patrol[k]
+		var b: Vector2i = patrol[k + 1]
+		if a.x == b.x:
+			var step: int = 1 if b.y > a.y else -1
+			var y: int = a.y
+			while true:
+				var t := Vector2i(a.x, y)
+				if not seen.has(t):
+					seen[t] = true
+					tiles.append(t)
+				if y == b.y:
+					break
+				y += step
+		else:
+			var step: int = 1 if b.x > a.x else -1
+			var x: int = a.x
+			while true:
+				var t := Vector2i(x, a.y)
+				if not seen.has(t):
+					seen[t] = true
+					tiles.append(t)
+				if x == b.x:
+					break
+				x += step
+	return tiles
 
 
 static func _patrol_facing(patrol: Array, k: int) -> float:

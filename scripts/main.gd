@@ -1,5 +1,6 @@
 extends Node
-## Shadow Assassin — root node. Main menu, level select, screen switching.
+## Shadow Assassin — root node. Main menu, character roster, level select,
+## screen switching.
 
 var sfx: Sfx
 var save: Dictionary = {}
@@ -27,6 +28,13 @@ func show_menu() -> void:
 
 
 func start_level(index: int) -> void:
+	# Guard clause: negative or out-of-range level numbers are ignored.
+	# (GDScript Array[-1] wraps to the last element — start_level(-1) used
+	# to silently start the final level.)
+	var count := ShadowLevels.get_levels().size()
+	if index < 0 or index >= count:
+		push_warning("start_level: invalid level index %d (0..%d) — ignoring" % [index, count - 1])
+		return
 	if menu_layer != null:
 		menu_layer.queue_free()
 		menu_layer = null
@@ -79,15 +87,15 @@ func _style_button(b: Button, bg: Color) -> void:
 
 func _build_menu() -> void:
 	var bg := ColorRect.new()
-	bg.color = Color(0.05, 0.16, 0.18)
+	bg.color = Color(0.05, 0.06, 0.07)
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	menu_layer.add_child(bg)
-	# decorative coins and stars
+	# decorative coins
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 99
 	for i in range(10):
 		var s := Sprite2D.new()
-		s.texture = load("res://art/coin.png" if i % 2 == 0 else "res://art/star.png")
+		s.texture = load("res://art/coin.png")
 		s.position = Vector2(rng.randf_range(30, 690), rng.randf_range(80, 1180))
 		s.scale = Vector2(0.3, 0.3)
 		s.modulate = Color(1, 1, 1, 0.35)
@@ -95,7 +103,7 @@ func _build_menu() -> void:
 		menu_layer.add_child(s)
 	var title1 := Label.new()
 	title1.text = "SHADOW"
-	title1.position = Vector2(0, 150)
+	title1.position = Vector2(0, 110)
 	title1.size = Vector2(720, 110)
 	title1.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title1.add_theme_font_size_override("font_size", 96)
@@ -105,7 +113,7 @@ func _build_menu() -> void:
 	menu_layer.add_child(title1)
 	var title2 := Label.new()
 	title2.text = "ASSASSIN"
-	title2.position = Vector2(0, 260)
+	title2.position = Vector2(0, 220)
 	title2.size = Vector2(720, 110)
 	title2.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title2.add_theme_font_size_override("font_size", 96)
@@ -113,34 +121,35 @@ func _build_menu() -> void:
 	title2.add_theme_color_override("font_outline_color", Color(0, 0, 0))
 	title2.add_theme_constant_override("outline_size", 10)
 	menu_layer.add_child(title2)
-	var sub := Label.new()
-	sub.text = "A tiny stealth adventure  •  50 levels"
-	sub.position = Vector2(0, 380)
-	sub.size = Vector2(720, 40)
-	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	sub.add_theme_font_size_override("font_size", 26)
-	sub.add_theme_color_override("font_color", Color(0.85, 0.95, 0.95))
-	menu_layer.add_child(sub)
+	var gems_label := Label.new()
+	gems_label.text = "◆ %d gems" % int(save.get("total_gems", 0))
+	gems_label.position = Vector2(0, 340)
+	gems_label.size = Vector2(720, 40)
+	gems_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	gems_label.add_theme_font_size_override("font_size", 28)
+	gems_label.add_theme_color_override("font_color", Color(0.5, 0.9, 1))
+	menu_layer.add_child(gems_label)
 	var unlocked: int = int(save.get("unlocked", 0))
 	var play := Button.new()
 	play.text = "▶  PLAY  —  Level %d" % (mini(unlocked, ShadowLevels.get_levels().size() - 1) + 1)
-	play.position = Vector2(160, 470)
-	play.size = Vector2(400, 92)
+	play.position = Vector2(160, 390)
+	play.size = Vector2(400, 88)
 	play.add_theme_font_size_override("font_size", 32)
 	_style_button(play, Color(0.11, 0.55, 0.5))
 	play.pressed.connect(func() -> void: sfx.play("click"); start_level(mini(unlocked, ShadowLevels.get_levels().size() - 1)))
 	menu_layer.add_child(play)
+	_build_roster(500)
 	var grid_label := Label.new()
 	grid_label.text = "LEVELS"
-	grid_label.position = Vector2(0, 600)
+	grid_label.position = Vector2(0, 800)
 	grid_label.size = Vector2(720, 36)
 	grid_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	grid_label.add_theme_font_size_override("font_size", 24)
 	grid_label.add_theme_color_override("font_color", Color(1, 0.85, 0.4))
 	menu_layer.add_child(grid_label)
 	var scroll := ScrollContainer.new()
-	scroll.position = Vector2(90, 650)
-	scroll.size = Vector2(540, 270)
+	scroll.position = Vector2(90, 845)
+	scroll.size = Vector2(540, 200)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	menu_layer.add_child(scroll)
 	var grid := GridContainer.new()
@@ -150,11 +159,10 @@ func _build_menu() -> void:
 	grid.add_theme_constant_override("h_separation", 12)
 	grid.add_theme_constant_override("v_separation", 12)
 	scroll.add_child(grid)
-	var stars_dict: Dictionary = save.get("stars", {})
 	for i in range(ShadowLevels.get_levels().size()):
 		var b := Button.new()
-		b.text = "%d\n%s" % [i + 1, ShadowSave.stars_string(stars_dict, i)]
-		b.custom_minimum_size = Vector2(96, 110)
+		b.text = "%d" % (i + 1)
+		b.custom_minimum_size = Vector2(96, 96)
 		b.add_theme_font_size_override("font_size", 26)
 		_style_button(b, Color(0.14, 0.42, 0.62) if i <= unlocked else Color(0.25, 0.28, 0.3))
 		if i > unlocked:
@@ -164,7 +172,7 @@ func _build_menu() -> void:
 		grid.add_child(b)
 	var howto := Button.new()
 	howto.text = "How to Play"
-	howto.position = Vector2(160, 960)
+	howto.position = Vector2(160, 1070)
 	howto.size = Vector2(400, 72)
 	howto.add_theme_font_size_override("font_size", 28)
 	_style_button(howto, Color(0.55, 0.35, 0.65))
@@ -172,7 +180,7 @@ func _build_menu() -> void:
 	menu_layer.add_child(howto)
 	var mute := Button.new()
 	mute.text = "Sound: OFF" if sfx.muted else "Sound: ON"
-	mute.position = Vector2(160, 1050)
+	mute.position = Vector2(160, 1160)
 	mute.size = Vector2(400, 72)
 	mute.add_theme_font_size_override("font_size", 28)
 	_style_button(mute, Color(0.35, 0.35, 0.4))
@@ -184,14 +192,85 @@ func _build_menu() -> void:
 		sfx.play("click")
 	)
 	menu_layer.add_child(mute)
-	var foot := Label.new()
-	foot.text = "An original game  •  v1.0"
-	foot.position = Vector2(0, 1210)
-	foot.size = Vector2(720, 36)
-	foot.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	foot.add_theme_font_size_override("font_size", 20)
-	foot.add_theme_color_override("font_color", Color(0.6, 0.75, 0.75))
-	menu_layer.add_child(foot)
+
+
+func _build_roster(y: float) -> void:
+	var label := Label.new()
+	label.text = "ASSASSINS  —  speed is everything"
+	label.position = Vector2(0, y)
+	label.size = Vector2(720, 34)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.add_theme_font_size_override("font_size", 24)
+	label.add_theme_color_override("font_color", Color(1, 0.85, 0.4))
+	menu_layer.add_child(label)
+	var selected: String = String(save.get("selected_character", "shadow"))
+	var x := 60.0
+	for c in ShadowCharacters.CHARACTERS:
+		var char_id: String = String(c["id"])
+		var owned := ShadowCharacters.is_owned(save, char_id)
+		var is_selected := selected == char_id
+		var card := PanelContainer.new()
+		card.position = Vector2(x, y + 44)
+		card.size = Vector2(140, 240)
+		var style := StyleBoxFlat.new()
+		style.bg_color = Color(0.12, 0.16, 0.18) if not is_selected else Color(0.16, 0.32, 0.3)
+		style.border_color = Color(1, 0.85, 0.4) if is_selected else Color(0.4, 0.45, 0.5)
+		style.set_border_width_all(3)
+		style.corner_radius_top_left = 14
+		style.corner_radius_top_right = 14
+		style.corner_radius_bottom_left = 14
+		style.corner_radius_bottom_right = 14
+		style.content_margin_left = 10
+		style.content_margin_right = 10
+		style.content_margin_top = 10
+		style.content_margin_bottom = 10
+		card.add_theme_stylebox_override("panel", style)
+		menu_layer.add_child(card)
+		var vbox := VBoxContainer.new()
+		vbox.add_theme_constant_override("separation", 6)
+		card.add_child(vbox)
+		var name_l := Label.new()
+		name_l.text = String(c["name"])
+		name_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		name_l.add_theme_font_size_override("font_size", 24)
+		name_l.add_theme_color_override("font_color", Color(1, 1, 1))
+		vbox.add_child(name_l)
+		var stats := Label.new()
+		stats.text = "Speed  x%.2f\nHealth  %d ♥" % [float(c["speed"]), int(c["health"])]
+		stats.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		stats.add_theme_font_size_override("font_size", 20)
+		stats.add_theme_color_override("font_color", Color(0.85, 0.95, 0.95))
+		vbox.add_child(stats)
+		var desc := Label.new()
+		desc.text = String(c["desc"])
+		desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		desc.add_theme_font_size_override("font_size", 17)
+		desc.add_theme_color_override("font_color", Color(0.7, 0.8, 0.8))
+		vbox.add_child(desc)
+		var btn := Button.new()
+		if is_selected:
+			btn.text = "SELECTED"
+			btn.disabled = true
+		elif owned:
+			btn.text = "Select"
+		else:
+			btn.text = "◆ %d" % int(c["cost"])
+		btn.custom_minimum_size = Vector2(0, 52)
+		btn.add_theme_font_size_override("font_size", 22)
+		_style_button(btn, Color(0.11, 0.55, 0.5) if owned else Color(0.55, 0.4, 0.1))
+		var cid := char_id
+		btn.pressed.connect(func() -> void:
+			sfx.play("click")
+			if ShadowCharacters.is_owned(save, cid):
+				save["selected_character"] = cid
+				ShadowSave.save_data(save)
+			elif ShadowCharacters.buy(save, cid):
+				pass # buy() persists + selects; not enough gems = stays as-is
+			show_menu()
+		)
+		vbox.add_child(btn)
+		x += 150.0
 
 
 func _show_howto() -> void:
@@ -227,7 +306,7 @@ func _show_howto() -> void:
 	title.add_theme_color_override("font_color", Color(1, 0.85, 0.4))
 	vbox.add_child(title)
 	var body := Label.new()
-	body.text = "• Tap a floor tile to move.\n\n• Tap a guard to sneak up behind them and take them out.\n\n• Stay out of the yellow vision cones. If a guard spots you, they chase you — break line of sight behind walls and crates!\n\n• Grab coins and gems for extra stars.\n\n• Eliminate every guard to clear the level.\n\n• 3 stars: clear the level + collect everything + never get spotted."
+	body.text = "• Tap a floor tile to move — or drag to steer. The orange line shows where you are going.\n\n• Walk into a guard to kill him. Best from behind — a frontal kill is risky, you are inside his cone.\n\n• Stay out of the white vision cones. A guard who sees you turns and SHOOTS. You have hearts — a few hits and you are down.\n\n• Kills make noise: nearby guards rush to the spot. Break line of sight and keep moving and they calm down.\n\n• Hide in bushes (unless a guard is right next to you). Shielded guards can only be killed from behind — or by a bomb.\n\n• Kill every guard to clear the level. Cash and gems are your reward — gems buy faster assassins."
 	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body.add_theme_font_size_override("font_size", 24)
 	body.add_theme_color_override("font_color", Color(1, 1, 1))
