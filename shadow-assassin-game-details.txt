@@ -1,0 +1,59 @@
+Shadow Assassin — Game Details
+================================
+Working title (Buddhika can rename it).
+Status: In development — started 2026-11-21. Built by Hiro.
+This file holds the game's details, separately from everything else.
+
+THE GAME
+---------
+- Original top-down 2D stealth assassin game for Android.
+- Genre inspiration: Hunter Assassin (Ruby Games) — but this is NOT that game.
+  Everything is ours: own name, own art, own code, own levels, own characters.
+  Nothing copied — no copyright risk.
+- Theme: assassin kept (Buddhika's choice, 2026-11-21).
+- Cartoonish style, 7+ audience, no gore (poof/star effect on elimination).
+
+LOOK
+----
+- Same colours as the Hunter Assassin reference: bright teal/green floors,
+  red/orange accents, gold/yellow highlights, dark player with a red accent —
+  plus even MORE colours.
+- Graphic quality HIGHER than the reference: crisp, polished, high-quality.
+
+GAMEPLAY (v1)
+-------------
+- Top-down 2D view; tap-to-move; sneak up behind enemies and eliminate them
+  when you are behind them or out of their sight.
+- Enemies/guards with visible vision cones; they chase you if they spot you.
+- Coins/gems to collect; a level is complete when all targets are eliminated.
+- LOTS of levels: 50 levels in v1, and more can be added later.
+- Difficulty: the first levels are EASY; each level gets a little bit
+  harder than the one before — more guards, faster patrols, wider vision
+  cones, tighter spaces, trickier layouts.
+- Every level is BEATABLE — the player can win all the way to the last
+  level — but the later levels are hard and need real thinking: watch the
+  patrols, time your moves, plan your route. Hard, never impossible.
+- HUD: level, coins, targets left. Game-over with retry. Win screen with stars.
+
+TECH & DELIVERY
+----------------
+- Engine: Godot 4 (open source). If Android export is not feasible here,
+  HTML5/Canvas fallback with a playable web preview.
+- GitHub: account "musehiro"; repo "shadow-assassin"; GitHub Actions builds
+  the Android APK.
+- Deliverable: the APK file itself, given to Buddhika to install and try.
+- Publishing: Google Play Store via Play Console (later, with Buddhika's
+  developer account).
+
+BOUNDARIES
+----------
+- Bus Sort Escape is NANA'S game — do NOT touch it (no code, Drive files,
+  GitHub repos, or Play Console entries). This game is completely separate.
+- The shared file with Nana (Muse-Hiro-messages.txt) is for Facebook posting
+  coordination only — game details do NOT go there.
+
+UPDATES
+-------
+- 2026-11-21: File created. Game build started (Godot download in progress).
+- 2026-11-21: Levels plan — 50 levels in v1, easy start, gradual ramp,
+  every level beatable with thinking (hard, never impossible).
