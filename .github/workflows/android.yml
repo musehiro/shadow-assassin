@@ -6,6 +6,18 @@ name: Android APK
 #
 # Only `run:` steps are used (no JavaScript actions): the job runs inside the
 # godot-ci container, which may not have Node.js.
+#
+# What the Godot 4.3 Android exporter needs (verified against the 4.3 source,
+# platform/android/export/export_plugin.cpp):
+#   * export templates installed at ~/.local/share/godot/export_templates/4.3.stable/
+#   * editor setting export/android/java_sdk_path -> a JDK whose bin/java exists
+#   * editor setting export/android/android_sdk_path -> an SDK with
+#     platform-tools/adb and build-tools/*/apksigner
+#   * a debug keystore file, pointed at by the export preset (keystore/debug,
+#     keystore/debug_user, keystore/debug_password) or the editor setting
+#     export/android/debug_keystore
+# This workflow installs / detects all of them instead of assuming the
+# container already has them.
 
 on:
   push:
@@ -29,8 +41,38 @@ jobs:
           git clone https://github.com/musehiro/shadow-assassin.git .
           git checkout ${{ github.sha }}
 
-      - name: Import project
-        run: godot --headless --import
+      - name: Install Godot 4.3 export templates
+        run: |
+          set -e
+          unzip_to() {
+            # $1 = zip file, $2 = destination directory
+            if command -v unzip >/dev/null 2>&1; then
+              unzip -o -q "$1" -d "$2"
+            elif command -v python3 >/dev/null 2>&1; then
+              python3 -m zipfile -e "$1" "$2"
+            else
+              apt-get update -qq && apt-get install -y -qq unzip
+              unzip -o -q "$1" -d "$2"
+            fi
+          }
+          TPL_DIR="$HOME/.local/share/godot/export_templates/4.3.stable"
+          mkdir -p "$TPL_DIR"
+          curl -sL -o /tmp/export_templates.tpz \
+            https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_export_templates.tpz
+          # The .tpz is a zip whose files live under a "templates/" prefix.
+          rm -rf /tmp/tpl-extract && mkdir -p /tmp/tpl-extract
+          unzip_to /tmp/export_templates.tpz /tmp/tpl-extract
+          if [ -d /tmp/tpl-extract/templates ]; then
+            cp /tmp/tpl-extract/templates/* "$TPL_DIR"/
+          else
+            cp /tmp/tpl-extract/* "$TPL_DIR"/
+          fi
+          rm -rf /tmp/tpl-extract /tmp/export_templates.tpz
+          [ -f "$TPL_DIR/version.txt" ] || echo "4.3.stable" > "$TPL_DIR/version.txt"
+          echo "Templates installed in $TPL_DIR:"
+          ls "$TPL_DIR"
+          test -f "$TPL_DIR/android_debug.apk" || { echo "MISSING android_debug.apk"; exit 1; }
+          test -f "$TPL_DIR/android_release.apk" || { echo "MISSING android_release.apk"; exit 1; }
 
       - name: Prepare debug keystore
         run: |
@@ -41,6 +83,152 @@ jobs:
               -keyalg RSA -keysize 2048 -validity 10000 \
               -dname "CN=Android Debug,O=Android,C=US"
           fi
+          ls -l ~/.android/debug.keystore
+
+      - name: Locate JDK and Android SDK
+        run: |
+          set -e
+          # --- JDK (Godot 4.x wants JDK 17; keytool already proved one exists) ---
+          if [ -n "$JAVA_HOME" ] && [ -x "$JAVA_HOME/bin/java" ]; then
+            JDK="$JAVA_HOME"
+          elif command -v java >/dev/null 2>&1; then
+            JDK="$(dirname "$(dirname "$(readlink -f "$(command -v java)")")")"
+          elif [ -x /usr/lib/jvm/java-17-openjdk-amd64/bin/java ]; then
+            JDK=/usr/lib/jvm/java-17-openjdk-amd64
+          else
+            echo "No JDK found - installing openjdk-17-jdk"
+            apt-get update -qq && apt-get install -y -qq openjdk-17-jdk
+            JDK=/usr/lib/jvm/java-17-openjdk-amd64
+          fi
+          echo "JDK=$JDK"
+          "$JDK/bin/java" -version
+          echo "JDK=$JDK" >> "$GITHUB_ENV"
+          # --- Android SDK (Godot validates platform-tools/adb + build-tools/apksigner) ---
+          if [ -n "$ANDROID_SDK_ROOT" ] && [ -x "$ANDROID_SDK_ROOT/platform-tools/adb" ]; then
+            SDK="$ANDROID_SDK_ROOT"
+          elif [ -n "$ANDROID_HOME" ] && [ -x "$ANDROID_HOME/platform-tools/adb" ]; then
+            SDK="$ANDROID_HOME"
+          elif [ -x /opt/android-sdk/platform-tools/adb ]; then
+            SDK=/opt/android-sdk
+          elif [ -x "$HOME/Android/Sdk/platform-tools/adb" ]; then
+            SDK="$HOME/Android/Sdk"
+          elif [ -x /usr/lib/android-sdk/platform-tools/adb ]; then
+            SDK=/usr/lib/android-sdk
+          else
+            echo "No Android SDK found - installing command-line tools"
+            SDK=/opt/android-sdk
+            mkdir -p "$SDK/cmdline-tools"
+            curl -sL -o /tmp/cmdtools.zip \
+              https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+            if command -v unzip >/dev/null 2>&1; then
+              unzip -o -q /tmp/cmdtools.zip -d "$SDK/cmdline-tools"
+            elif command -v python3 >/dev/null 2>&1; then
+              python3 -m zipfile -e /tmp/cmdtools.zip "$SDK/cmdline-tools"
+            else
+              apt-get update -qq && apt-get install -y -qq unzip
+              unzip -o -q /tmp/cmdtools.zip -d "$SDK/cmdline-tools"
+            fi
+            mv "$SDK/cmdline-tools/cmdline-tools" "$SDK/cmdline-tools/latest"
+            yes | "$SDK/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$SDK" --licenses >/dev/null || true
+            "$SDK/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$SDK" \
+              "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+          fi
+          echo "SDK=$SDK"
+          test -x "$SDK/platform-tools/adb" || { echo "MISSING adb in $SDK"; exit 1; }
+          ls -d "$SDK/build-tools"/*/apksigner >/dev/null || { echo "MISSING apksigner in $SDK/build-tools"; exit 1; }
+          echo "SDK=$SDK" >> "$GITHUB_ENV"
+
+      - name: Configure Godot editor settings + preset keystore
+        run: |
+          set -e
+          # Generate the default editor settings file, then point Godot at the
+          # JDK, Android SDK and debug keystore prepared above. (Godot does not
+          # auto-create the debug keystore in a headless run, so the keystore
+          # from the keytool step is used explicitly.)
+          godot --headless --editor --quit --path . || true
+          python3 - <<'PYEOF'
+          import os, re
+          home = os.environ["HOME"]
+          jdk = os.environ["JDK"]
+          sdk = os.environ["SDK"]
+          ks = os.path.join(home, ".android", "debug.keystore")
+          settings_path = os.path.join(home, ".config", "godot", "editor_settings-4.3.tres")
+          vals = {
+              "export/android/java_sdk_path": jdk,
+              "export/android/android_sdk_path": sdk,
+              "export/android/debug_keystore": ks,
+              "export/android/debug_keystore_user": "androiddebugkey",
+              "export/android/debug_keystore_pass": "android",
+          }
+          if os.path.exists(settings_path):
+              lines = open(settings_path).read().splitlines()
+              out, seen = [], set()
+              for line in lines:
+                  key = line.split(" = ")[0].strip() if " = " in line else None
+                  if key in vals:
+                      out.append(f'{key} = "{vals[key]}"')
+                      seen.add(key)
+                  else:
+                      out.append(line)
+              for key, val in vals.items():
+                  if key not in seen:
+                      out.append(f'{key} = "{val}"')
+              open(settings_path, "w").write("\n".join(out) + "\n")
+          else:
+              os.makedirs(os.path.dirname(settings_path), exist_ok=True)
+              body = '[gd_resource type="EditorSettings" format=3]\n\n[resource]\n'
+              body += "".join(f'{k} = "{v}"\n' for k, v in vals.items())
+              open(settings_path, "w").write(body)
+          print("--- editor settings (android) ---")
+          print("\n".join(l for l in open(settings_path).read().splitlines() if l.startswith("export/android")))
+          # Point the export preset at the same keystore (the preset wins over
+          # editor settings; both are set so either path works).
+          preset = "export_presets.cfg"
+          text = open(preset).read()
+          text = re.sub(r'^keystore/debug=.*$', f'keystore/debug="{ks}"', text, flags=re.M)
+          text = re.sub(r'^keystore/debug_user=.*$', 'keystore/debug_user="androiddebugkey"', text, flags=re.M)
+          text = re.sub(r'^keystore/debug_password=.*$', 'keystore/debug_password="android"', text, flags=re.M)
+          open(preset, "w").write(text)
+          print("--- preset keystore lines ---")
+          print("\n".join(l for l in text.splitlines() if l.startswith("keystore/debug")))
+          PYEOF
+
+      - name: Normalize binary assets (repair base64-text files if any)
+        run: |
+          # Safety net: the art/sfx files were once pushed as base64 TEXT instead
+          # of raw bytes (a connector limitation). If a file is still base64
+          # text, decode it to raw bytes before Godot imports it. Files that
+          # are already valid PNG/WAV are left untouched.
+          python3 - <<'PYEOF'
+          import base64, binascii, os
+          fixed, ok, bad = [], [], []
+          for path, magic in [
+              ("icon.png", b"\x89PNG"),
+          ] + [(f"art/{f}", b"\x89PNG") for f in sorted(os.listdir("art")) if f.endswith(".png")] \
+            + [(f"audio/{f}", b"RIFF") for f in sorted(os.listdir("audio")) if f.endswith(".wav")]:
+              data = open(path, "rb").read()
+              if data[:len(magic)] == magic:
+                  ok.append(path)
+                  continue
+              try:
+                  raw = base64.b64decode(data, validate=True)
+              except (binascii.Error, ValueError):
+                  bad.append(path)
+                  continue
+              if raw[:len(magic)] == magic:
+                  open(path, "wb").write(raw)
+                  fixed.append(path)
+              else:
+                  bad.append(path)
+          print(f"already raw: {len(ok)}, decoded from base64: {len(fixed)}, UNREPAIRABLE: {bad}")
+          if fixed:
+              print("fixed:", fixed)
+          if bad:
+              raise SystemExit(f"cannot repair: {bad}")
+          PYEOF
+
+      - name: Import project
+        run: godot --headless --import
 
       - name: Export debug APK
         run: |
