@@ -273,14 +273,30 @@ jobs:
           fi
           echo "release id: $RID"
           test -n "$RID" || { echo "ERROR: could not find or create the latest release"; exit 1; }
-          AID=$(curl -s -H "$AUTH" "$API/releases/$RID/assets" | tr ',' '\n' | grep -B2 '"name": "ShadowAssassin-debug.apk"' | grep -o '"id": [0-9]*' | head -1 | grep -o '[0-9]*' || true)
+          # Find the old asset's id with real JSON parsing: the assets list is
+          # compact JSON, so the old grep for '"name": "ShadowAssassin-debug.apk"'
+          # (with a space) never matched and the old asset was never deleted,
+          # which made every upload fail with already_exists (runs #10-#29).
+          AID=$(curl -s -H "$AUTH" "$API/releases/$RID/assets" | python3 -c "import sys,json; d=json.load(sys.stdin); print(next((a['id'] for a in d if isinstance(a,dict) and a.get('name')=='ShadowAssassin-debug.apk'), ''))" 2>/dev/null || true)
+          echo "old asset id: ${AID:-none}"
           if [ -n "$AID" ]; then
             echo "deleting old asset $AID"
             curl -s -X DELETE -H "$AUTH" "$API/releases/assets/$AID"
+            sleep 3
           fi
           UPLOAD=$(curl -s -X POST -H "$AUTH" -H "Content-Type: application/vnd.android.package-archive" \
             --data-binary @build/ShadowAssassin-debug.apk \
             "https://uploads.github.com/repos/$REPO/releases/$RID/assets?name=ShadowAssassin-debug.apk")
+          # Safety net: if the upload still hit already_exists (delete was slow),
+          # delete again and retry the upload once.
+          if echo "$UPLOAD" | grep -q 'already_exists'; then
+            echo "upload hit already_exists - deleting and retrying once"
+            AID2=$(curl -s -H "$AUTH" "$API/releases/$RID/assets" | python3 -c "import sys,json; d=json.load(sys.stdin); print(next((a['id'] for a in d if isinstance(a,dict) and a.get('name')=='ShadowAssassin-debug.apk'), ''))" 2>/dev/null || true)
+            if [ -n "$AID2" ]; then curl -s -X DELETE -H "$AUTH" "$API/releases/assets/$AID2"; sleep 3; fi
+            UPLOAD=$(curl -s -X POST -H "$AUTH" -H "Content-Type: application/vnd.android.package-archive" \
+              --data-binary @build/ShadowAssassin-debug.apk \
+              "https://uploads.github.com/repos/$REPO/releases/$RID/assets?name=ShadowAssassin-debug.apk")
+          fi
           echo "$UPLOAD" | grep -q 'ShadowAssassin-debug.apk' || { echo "ERROR: asset upload failed:"; echo "$UPLOAD"; exit 1; }
           echo "APK published:"
           echo "https://github.com/$REPO/releases/download/latest/ShadowAssassin-debug.apk"
