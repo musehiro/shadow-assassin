@@ -22,6 +22,10 @@ jobs:
     steps:
       - name: Check out source
         run: |
+          set -e
+          git config --global --add safe.directory '*'
+          ls -la
+          find . -mindepth 1 -delete || true
           git clone https://github.com/musehiro/shadow-assassin.git .
           git checkout ${{ github.sha }}
 
