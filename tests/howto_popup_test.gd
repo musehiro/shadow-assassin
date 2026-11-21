@@ -1,16 +1,18 @@
 extends SceneTree
-## Headless test for the How to Play popup fix (Buddhika, 2026-11-21).
+## Test for the How to Play popup — SMALL SQUARE WINDOW (Buddhika, 2026-11-21 18:15).
 ## Run UNDER xvfb-run (NOT --headless): xvfb-run -a godot --path . -s res://tests/howto_popup_test.gd
-## Regression: the old popup's long text pushed the "Got it!" close button
-## off the bottom of the panel, so there was NO way to close it — the
-## player was stuck on the menu and could never reach Play.
+## Replaces the tall-panel design (v3-admob: 560x680, 5 lines + X + Got it!):
+## the window must now be a SMALL SQUARE (480x480, centred), with a brief
+## short description and an X close button at the top-right. The old bug
+## this guards against: a popup with NO working way out (long text pushed
+## the close button off the panel, trapping the player on the menu).
 ## Checks:
-##   1. Popup opens; the "Got it!" button is fully inside the viewport
-##      (visible and tappable) and a close (X) button exists.
+##   1. Popup opens as a small square window (480x480, centred); the X
+##      button sits at the top-right of the window and is fully on screen;
+##      the text is brief (5 short bullets, no long paragraphs).
 ##   2. A tap on the panel body (not on any button) dismisses the popup.
 ##   3. A tap on the dim outside the panel dismisses the popup.
-##   4. A tap on the X button dismisses the popup.
-##   5. A tap on "Got it!" dismisses the popup.
+##   4. A tap on the X button dismisses the popup on the FIRST tap.
 
 var main: Node
 var frame := 0
@@ -78,27 +80,38 @@ func _process(_delta: float) -> bool:
 				return false
 			if not _find_popup():
 				return _fail("popup did not open (no PanelContainer/dim in menu_layer)")
-			var gotit := _find_button("Got it!")
-			if gotit == null:
-				return _fail("'Got it!' button missing from popup")
+			# --- small SQUARE window, centred ---
+			if _panel.size != Vector2(480, 480):
+				return _fail("popup must be a small 480x480 square window, got size %s" % str(_panel.size))
+			var want_pos := Vector2((720 - 480) * 0.5, (1280 - 480) * 0.5)
+			if _panel.position.distance_to(want_pos) > 2.0:
+				return _fail("popup must be centred at %s, got %s" % [str(want_pos), str(_panel.position)])
+			# --- X button: top-right of the window, fully on screen ---
 			var xbtn := _find_button("X")
 			if xbtn == null:
 				return _fail("close (X) button missing from popup")
 			var vr := Rect2(Vector2.ZERO, Vector2(720, 1280))
-			var gr := gotit.get_global_rect()
-			if not vr.encloses(gr):
-				return _fail("'Got it!' button not fully on screen: %s (viewport %s)" % [str(gr), str(vr)])
 			var xr := xbtn.get_global_rect()
 			if not vr.encloses(xr):
 				return _fail("X button not fully on screen: %s" % str(xr))
-			print("[HOWTO] popup opens; 'Got it!' %s and X %s both on screen" % [str(gr), str(xr)])
-			# --- tap the panel body (not a button) -> must dismiss ---
+			var pr := _panel.get_global_rect()
+			if absf(xr.end.x - pr.end.x) > 32.0 or absf(xr.position.y - pr.position.y) > 32.0:
+				return _fail("X button must sit at the top-right of the window (X %s, panel %s)" % [str(xr), str(pr)])
+			# --- brief text: 5 short bullets, no long paragraphs ---
 			var body: Label = null
 			for l in _panel.find_children("*", "Label", true, false):
 				if (l as Label).text.begins_with("• Tap a tile"):
 					body = l
 			if body == null:
 				return _fail("howto body label missing")
+			if body.text.count("•") != 5:
+				return _fail("howto text must be 5 short bullets, got %d" % body.text.count("•"))
+			if body.text.length() > 320:
+				return _fail("howto text must stay brief, got %d chars" % body.text.length())
+			if not body.text.contains("KEY") or not body.text.contains("EXIT"):
+				return _fail("howto text must still teach KEY + EXIT")
+			print("[HOWTO] small square window OK (480x480 centred, X top-right %s, %d chars)" % [str(xr), body.text.length()])
+			# --- tap the panel body (not a button) -> must dismiss ---
 			var bc := body.get_global_rect().get_center()
 			_tap(bc)
 			_release(bc)
@@ -143,35 +156,13 @@ func _process(_delta: float) -> bool:
 			_tap(c)
 			_release(c)
 			phase = 6
-			wait_until = frame + 10
+			wait_until = frame + 4
 		6:
 			if frame < wait_until:
 				return false
 			if _find_popup():
-				return _fail("tap on the X button did NOT dismiss the popup")
-			print("[HOWTO] tap on X button dismisses: PASS")
-			main._show_howto()
-			phase = 7
-			wait_until = frame + 5
-		7:
-			if frame < wait_until:
-				return false
-			if not _find_popup():
-				return _fail("popup did not reopen for the Got-it check")
-			var gotit := _find_button("Got it!")
-			if gotit == null:
-				return _fail("'Got it!' button missing on reopen")
-			var c := gotit.get_global_rect().get_center()
-			_tap(c)
-			_release(c)
-			phase = 8
-			wait_until = frame + 10
-		8:
-			if frame < wait_until:
-				return false
-			if _find_popup():
-				return _fail("tap on 'Got it!' did NOT dismiss the popup")
-			print("[HOWTO] tap on 'Got it!' dismisses: PASS")
+				return _fail("tap on the X button did NOT dismiss the popup on the first tap")
+			print("[HOWTO] tap on X button dismisses on first tap: PASS")
 			print("[HOWTO] ALL CHECKS PASS")
 			quit(0)
 			return true

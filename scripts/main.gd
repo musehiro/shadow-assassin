@@ -272,16 +272,19 @@ func _build_roster(y: float) -> void:
 		vbox.add_child(btn)
 		x += 150.0
 
-
 func _show_howto() -> void:
 	sfx.play("click")
 	var dim := ColorRect.new()
 	dim.color = Color(0, 0, 0, 0.6)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	menu_layer.add_child(dim)
+	# SMALL SQUARE WINDOW only (Buddhika, 2026-11-21): 480x480, centred
+	# on the screen — never the tall panel. Brief text, X top-right.
+	var view: Vector2 = get_viewport().get_visible_rect().size
+	var side := 480.0
 	var panel := PanelContainer.new()
-	panel.position = Vector2(80, 300)
-	panel.size = Vector2(560, 680)
+	panel.position = Vector2((view.x - side) * 0.5, (view.y - side) * 0.5)
+	panel.size = Vector2(side, side)
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.07, 0.2, 0.22)
 	style.border_color = Color(1, 0.8, 0.25)
@@ -290,17 +293,17 @@ func _show_howto() -> void:
 	style.corner_radius_top_right = 20
 	style.corner_radius_bottom_left = 20
 	style.corner_radius_bottom_right = 20
-	style.content_margin_left = 28
-	style.content_margin_right = 28
-	style.content_margin_top = 28
-	style.content_margin_bottom = 28
+	style.content_margin_left = 24
+	style.content_margin_right = 24
+	style.content_margin_top = 20
+	style.content_margin_bottom = 20
 	panel.add_theme_stylebox_override("panel", style)
 	menu_layer.add_child(panel)
 	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 16)
+	vbox.add_theme_constant_override("separation", 12)
 	vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(vbox)
-	# Title row: centered title + a visible close (X) button.
+	# Title row: centred title + the X close button at the top-right.
 	var title_row := HBoxContainer.new()
 	title_row.add_theme_constant_override("separation", 8)
 	title_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -309,32 +312,26 @@ func _show_howto() -> void:
 	title.text = "HOW TO PLAY"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	title.add_theme_font_size_override("font_size", 36)
+	title.add_theme_font_size_override("font_size", 30)
 	title.add_theme_color_override("font_color", Color(1, 0.85, 0.4))
 	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	title_row.add_child(title)
 	var xbtn := Button.new()
 	xbtn.text = "X"
-	xbtn.custom_minimum_size = Vector2(64, 64)
-	xbtn.add_theme_font_size_override("font_size", 32)
+	xbtn.custom_minimum_size = Vector2(56, 56)
+	xbtn.add_theme_font_size_override("font_size", 28)
 	_style_button(xbtn, Color(0.65, 0.15, 0.15))
 	title_row.add_child(xbtn)
 	var body := Label.new()
-	body.text = "• Tap a tile — or drag to draw a line. The assassin follows the orange line.\n\n• Grab the gold KEY, then reach the green EXIT. No key = exit locked.\n\n• Walk into a guard to kill him — best from behind.\n\n• Stay out of the white vision cones — guards who see you SHOOT.\n\n• Knife is silent. The Gun shoots far but is LOUD."
+	body.text = "• Tap a tile to move — or drag a line.\n\n• Grab the gold KEY, then reach the green EXIT.\n\n• Sneak up behind guards to kill them.\n\n• Stay out of the white cones — guards SHOOT.\n\n• Knife is silent. Gun is loud."
 	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	body.add_theme_font_size_override("font_size", 22)
+	body.add_theme_font_size_override("font_size", 20)
 	body.add_theme_color_override("font_color", Color(1, 1, 1))
 	body.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vbox.add_child(body)
-	var close := Button.new()
-	close.text = "Got it!"
-	close.custom_minimum_size = Vector2(0, 72)
-	close.add_theme_font_size_override("font_size", 28)
-	_style_button(close, Color(0.11, 0.55, 0.5))
-	vbox.add_child(close)
-	# Dismiss: tap ANYWHERE (dim, panel, X, or Got it!) closes the popup.
-	# The old popup trapped the player: its long text pushed the close
-	# button off the bottom of the panel, so there was no way out.
+	# Dismiss: the X button is the primary close (a real Button — it
+	# always works); tapping ANYWHERE (dim or panel) also closes it.
+	# Nothing can trap the player on this popup.
 	var dismiss := func() -> void:
 		sfx.play("click")
 		dim.queue_free()
@@ -347,4 +344,3 @@ func _show_howto() -> void:
 	dim.gui_input.connect(tap)
 	panel.gui_input.connect(tap)
 	xbtn.pressed.connect(dismiss)
-	close.pressed.connect(dismiss)
