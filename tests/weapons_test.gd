@@ -109,7 +109,10 @@ func _process(_delta: float) -> bool:
 				return _fail("unlocked gun slot must show the gun picture icon")
 			print("[WEAPONS] coin unlock OK (500 deducted, gun owned + equipped)")
 			# --- gun fire: cooldown gate, then a real shot ---
-			game.debug_teleport_behind_guard(0)
+			# Stage 1 tile behind on a walkable tile (the raw teleport
+			# can land inside a wall, which would eat the bullet; and
+			# from 2 tiles out a single shot can miss a moving guard).
+			game.debug_stage_behind_guard(0, 1.0)
 			game._gun_cooldown = 0.5
 			var shots_before: int = game.player_shots_fired
 			game._issue_move(game.guards[0].position)
@@ -128,7 +131,7 @@ func _process(_delta: float) -> bool:
 				print("[WEAPONS] gun kill OK (kills=%d, cash=%d)" % [game.kills, game.cash_earned])
 				if game.targets_left != 1:
 					return _fail("level 1 has 2 guards; after 1 gun kill targets_left must be 1, got %d" % game.targets_left)
-				game.debug_teleport_behind_guard(0)
+				game.debug_stage_behind_guard(0, 1.0)
 				game._gun_cooldown = 0.0
 				game._issue_move(game.guards[0].position)
 				phase = 3
@@ -206,12 +209,20 @@ func _process(_delta: float) -> bool:
 				return _fail("walking into a guard with the GUN must NOT kill (targets_left changed %d -> %d)" % [_targets_before, game.targets_left])
 			print("[WEAPONS] gun has no contact kill OK (targets_left stayed %d)" % _targets_before)
 			# --- switch to knife: contact kill works again ---
+			# v5 contact rule: standing still never kills — the player
+			# must WALK into the guard from behind. Freeze ALL guards
+			# (the others must not interfere) and stage a genuine
+			# behind-approach so the stealth kill is deterministic.
 			game._on_weapon_selected("knife")
 			if ShadowWeapons.active_weapon(main.save) != "knife":
 				return _fail("switching back to knife must work")
 			if game._key_icon == null:
 				return _fail("HUD key icon must exist after weapon switch")
-			game.debug_teleport_behind_guard(0)
+			for g in game.guards:
+				g.freeze(120.0)
+			game.debug_stage_behind_guard(0)
+			game.debug_freeze_guard_patrol(0)
+			game.debug_move_to_tile(game.world_to_tile(game.guards[0].position))
 			phase = 7
 			wait_until = frame + 180
 		7:

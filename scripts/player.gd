@@ -1,7 +1,8 @@
 class_name Player
 extends Node2D
 ## The shadow assassin. Tap-to-move (A*) plus drag-to-steer.
-## Contact with a guard kills the guard — no stalk mode, no attack button.
+## Walking into a guard from behind kills him (stealth knife kill);
+## a guard who walks into you — or one you meet face to face — hurts you.
 ## Clearly faster than any guard: base 260 px/s vs guard chase ~110-180 px/s.
 
 const BASE_SPEED := 260.0

@@ -180,7 +180,15 @@ func _process(_delta: float) -> bool:
 				return _fail("game left PLAYING state before the touch test (state=%d)" % game.state)
 			print("[MOVEKEY] HUD + bottom-bar taps correctly ignored")
 			# --- TOUCH: tap a far floor tile; player must move AT ONCE ---
+			# Freeze the guards AND clear them out of the level: under
+			# the v5 contact rule a guard the path bumps into (frontal
+			# contact) hurts the player and stops him, which would end
+			# the walk. The guards are frozen to isolate movement from
+			# stealth in the first place; removing them is the same
+			# isolation one step further (patrol lengths were already
+			# verified from level data in phase 1).
 			_freeze_guards(game)
+			game.debug_eliminate_all()
 			_dest = _far_walkable_tile(game, 4)
 			if _dest.x < 0:
 				return _fail("no walkable tile 4+ away from the player")

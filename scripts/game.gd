@@ -2,7 +2,8 @@ class_name ShadowGame
 extends Node2D
 ## Shadow Assassin — top-down 2D stealth game controller.
 ## Tap a floor tile to move; drag to steer (draw a line and the assassin
-## walks along it). Walk into a guard to kill him.
+## walks along it). Sneak up BEHIND a guard to kill him with the knife —
+## a guard who walks into you, or one you meet face to face, hurts YOU.
 ## Stay out of the white vision cones — a guard who sees you turns and SHOOTS.
 ## Win = collect the KEY (near the guards), then reach the bright-green
 ## EXIT square. Killing guards is how you get to the key safely. No stars;
@@ -93,6 +94,7 @@ var _board: Node2D
 var _fx: Node2D
 var _hud: CanvasLayer
 var _coin_label: Label
+var _coin_icon: Sprite2D
 var _target_label: Label
 var _health_label: Label
 var _gems_label: Label
@@ -216,6 +218,26 @@ func is_player_hidden() -> bool:
 		if g.alive and g.position.distance_to(player.position) < tile * 1.1:
 			return false
 	return true
+
+
+## Is the player in front of this guard (the guard faces the player)?
+## dot > 0.2: within ~78 degrees of the guard's facing direction.
+func _is_in_front_of_guard(g: Guard, pos: Vector2) -> bool:
+	var to_pos: Vector2 = (pos - g.position).normalized()
+	return to_pos.dot(Vector2(cos(g.facing), sin(g.facing))) > 0.2
+
+
+## Is the player actively walking TOWARD this guard? The next path step
+## is the true direction of travel (synchronous — unlike the facing,
+## which only updates on the player's next frame). If the player faces
+## away or stands still, the guard came up behind the player: that is
+## guard-initiated contact, never a kill.
+func _player_moving_toward(g: Guard) -> bool:
+	if player.path.is_empty():
+		return false
+	var step_dir: Vector2 = (player.path[0] - player.position).normalized()
+	var to_guard: Vector2 = (g.position - player.position).normalized()
+	return step_dir.dot(to_guard) > 0.3
 
 
 func find_path(from_tile: Vector2i, to_tile: Vector2i) -> Array:
@@ -588,9 +610,9 @@ func _build_hud() -> void:
 	_target_label.add_theme_color_override("font_outline_color", Color(0, 0, 0))
 	_target_label.add_theme_constant_override("outline_size", 8)
 	_hud.add_child(_target_label)
-	# Health: hearts, centre of the top bar.
+	# Health: hearts, left of centre of the top bar.
 	_health_label = Label.new()
-	_health_label.position = Vector2(300, 58)
+	_health_label.position = Vector2(272, 58)
 	_health_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_health_label.add_theme_font_size_override("font_size", 32)
 	_health_label.add_theme_color_override("font_color", Color(1, 0.25, 0.3))
@@ -599,18 +621,35 @@ func _build_hud() -> void:
 	_hud.add_child(_health_label)
 	# Gems, right of the hearts.
 	_gems_label = Label.new()
-	_gems_label.position = Vector2(470, 62)
+	_gems_label.position = Vector2(398, 62)
 	_gems_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_gems_label.add_theme_font_size_override("font_size", 26)
 	_gems_label.add_theme_color_override("font_color", Color(0.5, 0.9, 1))
 	_gems_label.add_theme_color_override("font_outline_color", Color(0, 0, 0))
 	_gems_label.add_theme_constant_override("outline_size", 6)
 	_hud.add_child(_gems_label)
-	# Key status, right of the gems: grey key until collected, gold after.
+	# Coins (v5 — Buddhika's playtest: collected coins were invisible).
+	# Gold coin icon + running wallet balance (banked coins + this
+	# level's cash so far), so the counter visibly climbs on pickup.
+	_coin_icon = Sprite2D.new()
+	if ResourceLoader.exists(TEX["coin"]):
+		_coin_icon.texture = load(TEX["coin"])
+	_coin_icon.position = Vector2(498, 78)
+	_coin_icon.scale = Vector2(0.34, 0.34)
+	_hud.add_child(_coin_icon)
+	_coin_label = Label.new()
+	_coin_label.position = Vector2(526, 62)
+	_coin_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_coin_label.add_theme_font_size_override("font_size", 26)
+	_coin_label.add_theme_color_override("font_color", Color(1, 0.85, 0.3))
+	_coin_label.add_theme_color_override("font_outline_color", Color(0, 0, 0))
+	_coin_label.add_theme_constant_override("outline_size", 6)
+	_hud.add_child(_coin_label)
+	# Key status, far right: grey key until collected, gold after.
 	_key_icon = Sprite2D.new()
 	if ResourceLoader.exists(TEX["key"]):
 		_key_icon.texture = load(TEX["key"])
-	_key_icon.position = Vector2(600, 78)
+	_key_icon.position = Vector2(648, 78)
 	_key_icon.scale = Vector2(0.34, 0.34)
 	_key_icon.modulate = Color(0.45, 0.45, 0.45, 0.9)
 	_hud.add_child(_key_icon)
@@ -684,6 +723,8 @@ func _update_hud() -> void:
 		hearts += "♥" if i < health else "♡"
 	_health_label.text = hearts
 	_gems_label.text = "◆ %d" % (int(save.get("total_gems", 0)) + gems_earned)
+	if _coin_label != null:
+		_coin_label.text = "%d" % (int(save.get("total_coins", 0)) + cash_earned)
 	if _key_icon != null:
 		_key_icon.modulate = Color(1, 0.85, 0.25) if key_collected else Color(0.45, 0.45, 0.45, 0.9)
 
@@ -880,16 +921,22 @@ func _process(delta: float) -> void:
 				sfx.play("coin")
 			_spawn_poof(tile_to_world(c["tile"]), 0.5)
 			_update_hud()
-	# CONTACT KILL — walking into a guard kills him instantly.
-	# Knife only: with the gun equipped there is no contact kill, so the
-	# gun is a real trade-off (ranged + loud, helpless up close).
+	# CONTACT RULE (v5 — Buddhika's playtest: ANY touch killed the guard
+	# for free, even standing still or facing away, so standing still
+	# was the winning move). A kill happens ONLY when the PLAYER walks
+	# into the guard — a stealth kill, best from behind. If a guard
+	# walks into you (from any side, even from behind), or you walk
+	# into a guard who faces you, or the guard is alerted and hunting
+	# you, the GUARD hurts YOU instead. The knife is for stealth,
+	# not for walking into gunfire.
 	var knife_active := ShadowWeapons.active_weapon(save) == ShadowWeapons.KNIFE_ID
 	for g in guards.duplicate():
 		if not g.alive:
 			continue
-		if player.position.distance_to(g.position) < elim_dist:
-			if not knife_active:
-				continue
+		if player.position.distance_to(g.position) >= elim_dist:
+			continue
+		var stealth_kill: bool = knife_active and _player_moving_toward(g) and g.state != Guard.State.ALERT and not _is_in_front_of_guard(g, player.position)
+		if stealth_kill:
 			if not g.can_be_killed_from(player.position):
 				if g.shield_block_cd <= 0.0:
 					g.shield_block_cd = 0.8
@@ -901,6 +948,17 @@ func _process(delta: float) -> void:
 					sfx.play("click")
 				continue
 			_kill_guard(g)
+		else:
+			# Guard-initiated contact, frontal contact, or contact with
+			# an alerted guard: the guard hurts you. Throttled by the
+			# damage invulnerability window, so one touch = one heart.
+			if _invuln <= 0.0 and state == State.PLAYING:
+				damage_player(1)
+				if state == State.PLAYING:
+					var away2: Vector2 = (player.position - g.position).normalized()
+					player.position += away2 * tile * 0.47
+					player.stop()
+					_spawn_popup(player.position + Vector2(0, -60), "CAUGHT!", Color(1, 0.3, 0.3))
 	# traps
 	_update_traps(delta)
 	# bullets / grenades
@@ -1701,6 +1759,43 @@ func debug_teleport_behind_guard(i: int) -> void:
 	player.stop()
 
 
+func debug_stage_behind_guard(i: int, dist_tiles: float = 2.0) -> void:
+	# Test helper (v5): put the player on a WALKABLE tile behind the
+	# guard, far enough out that a real walk-in path exists. The raw
+	# debug_teleport_behind_guard offset can land inside a wall/crate
+	# in dense mazes, leaving the player with no path — and under the
+	# v5 contact rule a player with no path never kills. The staging
+	# tile must be genuinely BEHIND the guard: the nearest walkable
+	# tile can sit in front of him, and then the walk-in is frontal
+	# (the guard hurts the player) instead of a stealth kill.
+	if i < 0 or i >= guards.size():
+		return
+	var g: Guard = guards[i]
+	var target: Vector2i = world_to_tile(g.position - Vector2(cos(g.facing), sin(g.facing)) * tile * dist_tiles)
+	var facing_dir := Vector2(cos(g.facing), sin(g.facing))
+	var seen := {target: 0}
+	var queue: Array = [target]
+	var best := Vector2i(-1, -1)
+	while not queue.is_empty():
+		var cur: Vector2i = queue.pop_front()
+		if is_walkable(cur):
+			var to_tile: Vector2 = (tile_to_world(cur) - g.position).normalized()
+			if to_tile.dot(facing_dir) < -0.2:
+				best = cur
+				break
+		if seen[cur] >= 6:
+			continue
+		for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			var nb: Vector2i = cur + d
+			if not seen.has(nb):
+				seen[nb] = seen[cur] + 1
+				queue.append(nb)
+	if best.x < 0:
+		best = _nearest_walkable(target)
+	player.position = tile_to_world(best)
+	player.stop()
+
+
 func debug_kill_guard(i: int) -> void:
 	if i >= 0 and i < guards.size():
 		_kill_guard(guards[i])
@@ -1720,6 +1815,15 @@ func debug_damage_player(dmg: int) -> void:
 func debug_force_alert(i: int) -> void:
 	if i >= 0 and i < guards.size() and guards[i].alive:
 		guards[i]._become_alert()
+
+
+func debug_freeze_guard_patrol(i: int) -> void:
+	# Test helper: pin a guard in place, calm, facing as-is, so a stealth
+	# kill can be staged deterministically (no patrol drift, no alerts).
+	if i < 0 or i >= guards.size() or not guards[i].alive:
+		return
+	guards[i].state = Guard.State.PATROL
+	guards[i].freeze(120.0)
 
 
 func debug_collect() -> void:

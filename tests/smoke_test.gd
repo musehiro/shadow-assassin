@@ -9,6 +9,7 @@ var main: Node
 var frame := 0
 var phase := 0
 var wait_until := 0
+var _second_staged := false
 
 
 func _initialize() -> void:
@@ -52,8 +53,15 @@ func _process(_delta: float) -> bool:
 			var game = main.game
 			if game.coins_collected > 0:
 				print("[SMOKE] coin collected (", game.coins_collected, "), cash=", game.cash_earned)
-				game.debug_teleport_behind_guard(0)
-				print("[SMOKE] teleported behind guard 0 for contact kill")
+				# v5 contact rule: standing still never kills — the player
+				# must WALK into the guard from behind. Stage the player
+				# on a walkable tile 2 tiles behind (the raw teleport can
+				# land inside a wall, leaving no path) and freeze + calm
+				# the guard so the stealth kill is deterministic.
+				game.debug_stage_behind_guard(0)
+				game.debug_freeze_guard_patrol(0)
+				game.debug_move_to_tile(game.world_to_tile(game.guards[0].position))
+				print("[SMOKE] teleported behind guard 0, walking in for the stealth kill")
 				phase = 3
 				wait_until = frame + 300
 			elif frame >= wait_until:
@@ -73,12 +81,17 @@ func _process(_delta: float) -> bool:
 				print("[SMOKE] all guards down; moving to key ", game.key_tile)
 				phase = 8
 				wait_until = frame + 900
-			elif game.kills == 1 and game.targets_left == 1:
-				# First guard down — move on to the second (noise may have alerted it).
-				game.debug_teleport_behind_guard(0)
-				print("[SMOKE] first kill done, teleported behind remaining guard")
 			elif frame >= wait_until:
 				return _fail("guards were not contact-killed in time (targets_left=%d)" % game.targets_left)
+			elif game.kills == 1 and game.targets_left == 1 and not _second_staged:
+				# First guard down — move on to the second (noise may have alerted it).
+				# Stage the walk-in ONCE: re-teleporting every frame would
+				# reset the player's position and path, so he never arrives.
+				_second_staged = true
+				game.debug_stage_behind_guard(0)
+				game.debug_freeze_guard_patrol(0)
+				game.debug_move_to_tile(game.world_to_tile(game.guards[0].position))
+				print("[SMOKE] first kill done, teleported behind remaining guard, walking in")
 		8:
 			var game = main.game
 			if game.key_collected:

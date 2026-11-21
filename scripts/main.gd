@@ -85,26 +85,109 @@ func _style_button(b: Button, bg: Color) -> void:
 	b.add_theme_color_override("font_disabled_color", Color(0.6, 0.6, 0.6))
 
 
+func _wallet_chip(icon_tex: String, text: String, color: Color) -> PanelContainer:
+	var chip := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0, 0, 0, 0.35)
+	style.border_color = Color(color.r, color.g, color.b, 0.7)
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(28)
+	style.content_margin_left = 16
+	style.content_margin_right = 16
+	style.content_margin_top = 8
+	style.content_margin_bottom = 8
+	chip.add_theme_stylebox_override("panel", style)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	chip.add_child(row)
+	var icon := TextureRect.new()
+	icon.texture = load(icon_tex)
+	icon.custom_minimum_size = Vector2(36, 36)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	row.add_child(icon)
+	var label := Label.new()
+	label.text = text
+	label.add_theme_font_size_override("font_size", 26)
+	label.add_theme_color_override("font_color", color)
+	row.add_child(label)
+	return chip
+
+
 func _build_menu() -> void:
-	var bg := ColorRect.new()
-	bg.color = Color(0.05, 0.06, 0.07)
+	# v5 HOMEPAGE REDESIGN (Buddhika, 2026-11-21): a completely new look —
+	# colourful gradient, gold trim, wallet chips, a BIG PLAY button front
+	# and centre, and the How to Play button small in a corner. ASSASSINS
+	# and LEVELS stay reachable. The small-square How to Play popup itself
+	# is unchanged. Layout is absolute for the top half; the level grid
+	# stretches to fill the rest, so tall phones look full too.
+	var view: Vector2 = get_viewport().get_visible_rect().size
+	var W := view.x
+	var H := view.y
+	# Colourful gradient background: deep purple melting into dark teal.
+	var grad := Gradient.new()
+	grad.colors = PackedColorArray([Color(0.22, 0.10, 0.45), Color(0.08, 0.16, 0.38), Color(0.02, 0.20, 0.22)])
+	grad.offsets = PackedFloat32Array([0.0, 0.55, 1.0])
+	var gtex := GradientTexture2D.new()
+	gtex.gradient = grad
+	gtex.fill_from = Vector2(0.5, 0)
+	gtex.fill_to = Vector2(0.5, 1)
+	gtex.width = int(W)
+	gtex.height = int(H)
+	var bg := TextureRect.new()
+	bg.texture = gtex
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	menu_layer.add_child(bg)
-	# decorative coins
+	# Gold trim frame around the whole screen.
+	var frame := PanelContainer.new()
+	frame.position = Vector2(14, 14)
+	frame.size = Vector2(W - 28, H - 28)
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var fstyle := StyleBoxFlat.new()
+	fstyle.bg_color = Color(0, 0, 0, 0)
+	fstyle.border_color = Color(1, 0.8, 0.25, 0.55)
+	fstyle.set_border_width_all(3)
+	fstyle.set_corner_radius_all(24)
+	frame.add_theme_stylebox_override("panel", fstyle)
+	menu_layer.add_child(frame)
+	# Decorative coins + gems scattered over the background.
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 99
-	for i in range(10):
+	for i in range(12):
 		var s := Sprite2D.new()
 		s.texture = load("res://art/coin.png")
-		s.position = Vector2(rng.randf_range(30, 690), rng.randf_range(80, 1180))
+		s.position = Vector2(rng.randf_range(30, W - 30), rng.randf_range(90, H - 90))
 		s.scale = Vector2(0.3, 0.3)
-		s.modulate = Color(1, 1, 1, 0.35)
+		s.modulate = Color(1, 1, 1, 0.4)
 		s.rotation = rng.randf_range(0, TAU)
 		menu_layer.add_child(s)
+	for i in range(6):
+		var g := Sprite2D.new()
+		g.texture = load(["res://art/gem_cyan.png", "res://art/gem_pink.png", "res://art/gem_purple.png"][i % 3])
+		g.position = Vector2(rng.randf_range(40, W - 40), rng.randf_range(90, H - 90))
+		g.scale = Vector2(0.3, 0.3)
+		g.modulate = Color(1, 1, 1, 0.5)
+		g.rotation = rng.randf_range(0, TAU)
+		menu_layer.add_child(g)
+	# The assassin himself, large and faded, behind the title; guards
+	# flanking the wallet row.
+	var hero := Sprite2D.new()
+	hero.texture = load("res://art/player.png")
+	hero.position = Vector2(W * 0.5, 215)
+	hero.scale = Vector2(1.6, 1.6)
+	hero.modulate = Color(1, 1, 1, 0.3)
+	menu_layer.add_child(hero)
+	for pair in [["res://art/guard_orange.png", 70.0], ["res://art/guard_blue.png", W - 70.0]]:
+		var gs := Sprite2D.new()
+		gs.texture = load(pair[0])
+		gs.position = Vector2(float(pair[1]), 355)
+		gs.scale = Vector2(0.55, 0.55)
+		gs.modulate = Color(1, 1, 1, 0.6)
+		menu_layer.add_child(gs)
 	var title1 := Label.new()
 	title1.text = "SHADOW"
-	title1.position = Vector2(0, 110)
-	title1.size = Vector2(720, 110)
+	title1.position = Vector2(0, 100)
+	title1.size = Vector2(W, 110)
 	title1.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title1.add_theme_font_size_override("font_size", 96)
 	title1.add_theme_color_override("font_color", Color(1, 0.85, 0.4))
@@ -113,43 +196,62 @@ func _build_menu() -> void:
 	menu_layer.add_child(title1)
 	var title2 := Label.new()
 	title2.text = "ASSASSIN"
-	title2.position = Vector2(0, 220)
-	title2.size = Vector2(720, 110)
+	title2.position = Vector2(0, 205)
+	title2.size = Vector2(W, 110)
 	title2.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title2.add_theme_font_size_override("font_size", 96)
 	title2.add_theme_color_override("font_color", Color(0.35, 0.95, 0.85))
 	title2.add_theme_color_override("font_outline_color", Color(0, 0, 0))
 	title2.add_theme_constant_override("outline_size", 10)
 	menu_layer.add_child(title2)
-	var gems_label := Label.new()
-	gems_label.text = "◆ %d gems" % int(save.get("total_gems", 0))
-	gems_label.position = Vector2(0, 340)
-	gems_label.size = Vector2(720, 40)
-	gems_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	gems_label.add_theme_font_size_override("font_size", 28)
-	gems_label.add_theme_color_override("font_color", Color(0.5, 0.9, 1))
-	menu_layer.add_child(gems_label)
+	# Wallet chips: coins + gems, centred under the title.
+	var wallet := HBoxContainer.new()
+	wallet.position = Vector2(0, 330)
+	wallet.size = Vector2(W, 56)
+	wallet.alignment = BoxContainer.ALIGNMENT_CENTER
+	wallet.add_theme_constant_override("separation", 24)
+	menu_layer.add_child(wallet)
+	wallet.add_child(_wallet_chip("res://art/coin.png", "%d coins" % int(save.get("total_coins", 0)), Color(1, 0.85, 0.3)))
+	wallet.add_child(_wallet_chip("res://art/gem_cyan.png", "%d gems" % int(save.get("total_gems", 0)), Color(0.5, 0.9, 1)))
 	var unlocked: int = int(save.get("unlocked", 0))
+	# BIG PLAY button, front and centre — tap it and the game starts.
+	var play_frame := PanelContainer.new()
+	play_frame.position = Vector2(102, 392)
+	play_frame.size = Vector2(516, 136)
+	play_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var pfstyle := StyleBoxFlat.new()
+	pfstyle.bg_color = Color(1, 0.8, 0.25)
+	pfstyle.set_corner_radius_all(20)
+	play_frame.add_theme_stylebox_override("panel", pfstyle)
+	menu_layer.add_child(play_frame)
 	var play := Button.new()
-	play.text = "▶  PLAY  —  Level %d" % (mini(unlocked, ShadowLevels.get_levels().size() - 1) + 1)
-	play.position = Vector2(160, 390)
-	play.size = Vector2(400, 88)
-	play.add_theme_font_size_override("font_size", 32)
-	_style_button(play, Color(0.11, 0.55, 0.5))
+	play.text = "▶  PLAY"
+	play.position = Vector2(110, 400)
+	play.size = Vector2(500, 120)
+	play.add_theme_font_size_override("font_size", 48)
+	_style_button(play, Color(0.05, 0.65, 0.35))
 	play.pressed.connect(func() -> void: sfx.play("click"); start_level(mini(unlocked, ShadowLevels.get_levels().size() - 1)))
 	menu_layer.add_child(play)
-	_build_roster(500)
+	var cont := Label.new()
+	cont.text = "Continue: Level %d" % (mini(unlocked, ShadowLevels.get_levels().size() - 1) + 1)
+	cont.position = Vector2(0, 528)
+	cont.size = Vector2(W, 36)
+	cont.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	cont.add_theme_font_size_override("font_size", 24)
+	cont.add_theme_color_override("font_color", Color(1, 0.85, 0.4))
+	menu_layer.add_child(cont)
+	_build_roster(570)
 	var grid_label := Label.new()
 	grid_label.text = "LEVELS"
-	grid_label.position = Vector2(0, 800)
-	grid_label.size = Vector2(720, 36)
+	grid_label.position = Vector2(0, 870)
+	grid_label.size = Vector2(W, 36)
 	grid_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	grid_label.add_theme_font_size_override("font_size", 24)
 	grid_label.add_theme_color_override("font_color", Color(1, 0.85, 0.4))
 	menu_layer.add_child(grid_label)
 	var scroll := ScrollContainer.new()
-	scroll.position = Vector2(90, 845)
-	scroll.size = Vector2(540, 200)
+	scroll.position = Vector2(90, 905)
+	scroll.size = Vector2(540, H - 905 - 40)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	menu_layer.add_child(scroll)
 	var grid := GridContainer.new()
@@ -170,19 +272,21 @@ func _build_menu() -> void:
 		var idx := i
 		b.pressed.connect(func() -> void: sfx.play("click"); start_level(idx))
 		grid.add_child(b)
+	# How to Play: SMALL, separate, top-right corner.
 	var howto := Button.new()
 	howto.text = "How to Play"
-	howto.position = Vector2(160, 1070)
-	howto.size = Vector2(400, 72)
-	howto.add_theme_font_size_override("font_size", 28)
+	howto.position = Vector2(W - 172, 28)
+	howto.size = Vector2(152, 54)
+	howto.add_theme_font_size_override("font_size", 20)
 	_style_button(howto, Color(0.55, 0.35, 0.65))
 	howto.pressed.connect(_show_howto)
 	menu_layer.add_child(howto)
+	# Sound: small, top-left corner to match.
 	var mute := Button.new()
 	mute.text = "Sound: OFF" if sfx.muted else "Sound: ON"
-	mute.position = Vector2(160, 1160)
-	mute.size = Vector2(400, 72)
-	mute.add_theme_font_size_override("font_size", 28)
+	mute.position = Vector2(20, 28)
+	mute.size = Vector2(152, 54)
+	mute.add_theme_font_size_override("font_size", 20)
 	_style_button(mute, Color(0.35, 0.35, 0.4))
 	mute.pressed.connect(func() -> void:
 		sfx.muted = not sfx.muted
