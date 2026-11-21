@@ -25,6 +25,33 @@ func _initialize() -> void:
 			print("  - " + str(p))
 		quit(1)
 		return
+	# Guard-count curve + optional-field coverage (schema contract).
+	var want_counts := {1: 2, 2: 3, 3: 3, 4: 4, 10: 6, 50: 9}
+	for lv_no in want_counts:
+		var got: int = (levels[lv_no - 1] as Dictionary)["guards"].size()
+		if got != want_counts[lv_no]:
+			print("[VALIDATE] FAIL: level %d has %d guards (want %d)" % [lv_no, got, want_counts[lv_no]])
+			quit(1)
+			return
+	var want_themes := {1: "warehouse", 13: "cyber", 26: "lab", 38: "prison"}
+	for lv_no in want_themes:
+		var got_theme: String = String((levels[lv_no - 1] as Dictionary).get("theme", ""))
+		if got_theme != want_themes[lv_no]:
+			print("[VALIDATE] FAIL: level %d theme is %s (want %s)" % [lv_no, got_theme, want_themes[lv_no]])
+			quit(1)
+			return
+	for li in range(levels.size()):
+		var lv: Dictionary = levels[li]
+		if not lv.has("theme"):
+			print("[VALIDATE] FAIL: level %d has no theme" % [li + 1])
+			quit(1)
+			return
+		for g in lv["guards"]:
+			if not (g as Dictionary).has("type"):
+				print("[VALIDATE] FAIL: level %d guard has no type" % [li + 1])
+				quit(1)
+				return
+	print("[VALIDATE] guard curve + themes + types OK")
 	var scene: PackedScene = load("res://scenes/main.tscn")
 	main = scene.instantiate()
 	root.add_child(main)
