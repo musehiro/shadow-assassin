@@ -12,6 +12,7 @@ var _name := "howto_720x1280.png"
 
 
 func _initialize() -> void:
+	KillGuide.force_skip = true # v6: the first-play kill guide would pause the game
 	_outdir = OS.get_environment("OUTDIR") if OS.get_environment("OUTDIR") != "" else "res://verification/shots-v4"
 	_name = OS.get_environment("SHOT_NAME") if OS.get_environment("SHOT_NAME") != "" else "howto_720x1280.png"
 	var scene: PackedScene = load("res://scenes/main.tscn")

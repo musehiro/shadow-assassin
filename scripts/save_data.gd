@@ -19,6 +19,9 @@ static func load_data() -> Dictionary:
 		# v4 tutorial: coach-mark ids already shown or skipped — never
 		# shown again. Old saves get the empty default.
 		"hints_seen": [],
+		# v6 kill guide: the two how-to-kill picture windows — shown
+		# once before the first play, never again. Old saves get false.
+		"kill_guide_seen": false,
 	}
 	var cfg := ConfigFile.new()
 	if cfg.load(PATH) != OK:
@@ -39,6 +42,7 @@ static func load_data() -> Dictionary:
 	data["active_weapon"] = String(cfg.get_value("progress", "active_weapon", "knife"))
 	data["levels_completed"] = int(cfg.get_value("progress", "levels_completed", 0))
 	data["hints_seen"] = Array(cfg.get_value("progress", "hints_seen", []))
+	data["kill_guide_seen"] = bool(cfg.get_value("progress", "kill_guide_seen", false))
 	var stars := {}
 	for i in range(LEVEL_COUNT):
 		stars[i] = int(cfg.get_value("stars", "level_%d" % i, 0))
@@ -57,6 +61,7 @@ static func save_data(data: Dictionary) -> void:
 	cfg.set_value("progress", "active_weapon", String(data.get("active_weapon", "knife")))
 	cfg.set_value("progress", "levels_completed", int(data.get("levels_completed", 0)))
 	cfg.set_value("progress", "hints_seen", Array(data.get("hints_seen", [])))
+	cfg.set_value("progress", "kill_guide_seen", bool(data.get("kill_guide_seen", false)))
 	cfg.set_value("settings", "muted", bool(data.get("muted", false)))
 	var stars: Dictionary = data.get("stars", {})
 	for k in stars.keys():
