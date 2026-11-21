@@ -29,6 +29,20 @@
 #    If android_source.zip is not present (no export templates installed),
 #    it prints a warning and skips — the export then fails with Godot's
 #    standard "Android build template not installed" error, as before.
+#    The installer ALSO writes res://android/.build_version and an empty
+#    res://android/build/.gdignore, exactly like the editor's own
+#    "Install Android Build Template" (ExportTemplateManager::
+#    install_android_template_from_file in the Godot 4.3 source).
+#    android_source.zip contains NEITHER file, and without .build_version
+#    the Android exporter refuses the gradle-built template with
+#    "Trying to build from a gradle built template, but no version info
+#    for it exists." The version written is
+#    ExportTemplateManager::get_android_template_identifier(): the Godot
+#    version string (e.g. "4.3.stable") for the default template, or
+#    "<path> [<md5>]" for a custom android_source_template preset option.
+#    The version step runs even when the template is already installed,
+#    so a template extracted by an older version of this plugin (no
+#    .build_version) gets fixed on the next editor start.
 @tool
 extends EditorPlugin
 
@@ -45,12 +59,17 @@ const BINARY_FILES: Array[String] = [
 const TEMPLATE_MARKER := "res://android/build/build.gradle"
 ## Where the template is installed to (zip root maps here).
 const TEMPLATE_DIR := "res://android/build"
+## Version file the Android exporter requires (see _ensure_build_version).
+const BUILD_VERSION_PATH := "res://android/.build_version"
+## Empty file the editor's own template install adds to skip scanning.
+const GDIGNORE_PATH := "res://android/build/.gdignore"
 
 
 func _enter_tree() -> void:
 	for path in BINARY_FILES:
 		_decode_if_needed(path)
 	_install_android_build_template()
+	_ensure_build_version()
 
 
 func _decode_if_needed(path: String) -> void:
@@ -148,3 +167,52 @@ func _install_android_build_template() -> void:
 		var gradlew_abs: String = ProjectSettings.globalize_path(TEMPLATE_DIR + "/gradlew")
 		OS.execute("chmod", ["+x", gradlew_abs])
 	print("[BinDecode] Installed Android build template from " + zip_path + " (" + str(count) + " files -> " + TEMPLATE_DIR + ")")
+
+
+## Mirror ExportTemplateManager::get_android_template_identifier() from
+## the Godot 4.3 source (editor/export/export_template_manager.cpp):
+## a custom android_source_template preset option -> "<path> [<md5>]",
+## otherwise the Godot version string (VERSION_FULL_CONFIG, e.g. "4.3.stable").
+func _android_template_identifier() -> String:
+	var custom := ""
+	var cfg := ConfigFile.new()
+	if cfg.load("res://export_presets.cfg") == OK:
+		for section in cfg.get_sections():
+			var value := str(cfg.get_value(section, "gradle_build/android_source_template", ""))
+			if not value.is_empty():
+				custom = value
+				break
+	if not custom.is_empty():
+		return custom + " [" + FileAccess.get_md5(custom) + "]"
+	var info: Dictionary = Engine.get_version_info()
+	return "%s.%s.%s" % [str(info.get("major", "")), str(info.get("minor", "")), str(info.get("status", ""))]
+
+
+## Write res://android/.build_version (and the empty .gdignore) if missing
+## or wrong. Runs on every editor start, so templates installed by an
+## older version of this plugin get fixed too.
+func _ensure_build_version() -> void:
+	if not FileAccess.file_exists(TEMPLATE_MARKER):
+		return
+	var want: String = _android_template_identifier()
+	var have := ""
+	if FileAccess.file_exists(BUILD_VERSION_PATH):
+		var f := FileAccess.open(BUILD_VERSION_PATH, FileAccess.READ)
+		if f != null:
+			have = f.get_line().strip_edges()
+			f.close()
+	if have != want:
+		var out := FileAccess.open(BUILD_VERSION_PATH, FileAccess.WRITE)
+		if out == null:
+			push_error("[BinDecode] Cannot write " + BUILD_VERSION_PATH)
+		else:
+			out.store_line(want)
+			out.close()
+			print("[BinDecode] Wrote " + BUILD_VERSION_PATH + " = \"" + want + "\"")
+	if not FileAccess.file_exists(GDIGNORE_PATH):
+		var g := FileAccess.open(GDIGNORE_PATH, FileAccess.WRITE)
+		if g == null:
+			push_error("[BinDecode] Cannot write " + GDIGNORE_PATH)
+		else:
+			g.store_line("")
+			g.close()

@@ -298,23 +298,53 @@ func _show_howto() -> void:
 	menu_layer.add_child(panel)
 	var vbox := VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 16)
+	vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(vbox)
+	# Title row: centered title + a visible close (X) button.
+	var title_row := HBoxContainer.new()
+	title_row.add_theme_constant_override("separation", 8)
+	title_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vbox.add_child(title_row)
 	var title := Label.new()
 	title.text = "HOW TO PLAY"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title.add_theme_font_size_override("font_size", 36)
 	title.add_theme_color_override("font_color", Color(1, 0.85, 0.4))
-	vbox.add_child(title)
+	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	title_row.add_child(title)
+	var xbtn := Button.new()
+	xbtn.text = "X"
+	xbtn.custom_minimum_size = Vector2(64, 64)
+	xbtn.add_theme_font_size_override("font_size", 32)
+	_style_button(xbtn, Color(0.65, 0.15, 0.15))
+	title_row.add_child(xbtn)
 	var body := Label.new()
-	body.text = "• Tap a floor tile to move — or drag your finger to draw a line. The assassin walks along the orange line at once. The line shows where you are going.\n\n• Get the KEY (gold, near the guards), then reach the bright-green EXIT square — the bouncing arrow points at it. Without the key the exit stays locked.\n\n• Walk into a guard to kill him. Best from behind — a frontal kill is risky, you are inside his cone. Killing guards is how you reach the key safely.\n\n• Stay out of the white vision cones. A guard who sees you turns and SHOOTS. You have hearts — a few hits and you are down.\n\n• Kills make noise: nearby guards rush to the spot. Break line of sight and keep moving and they calm down.\n\n• Hide in bushes (unless a guard is right next to you). Shielded guards can only be killed from behind — or by a bomb.\n\n• WEAPONS (side of the screen): the Knife is silent and kills up close. The Gun shoots from 5 tiles away but is LOUD and has no contact kill — tap a guard to shoot. Unlock the Gun for 500 coins or by watching an ad.\n\n• Cash and gems are your reward — gems buy faster assassins."
+	body.text = "• Tap a tile — or drag to draw a line. The assassin follows the orange line.\n\n• Grab the gold KEY, then reach the green EXIT. No key = exit locked.\n\n• Walk into a guard to kill him — best from behind.\n\n• Stay out of the white vision cones — guards who see you SHOOT.\n\n• Knife is silent. The Gun shoots far but is LOUD."
 	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	body.add_theme_font_size_override("font_size", 24)
+	body.add_theme_font_size_override("font_size", 22)
 	body.add_theme_color_override("font_color", Color(1, 1, 1))
+	body.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vbox.add_child(body)
 	var close := Button.new()
 	close.text = "Got it!"
 	close.custom_minimum_size = Vector2(0, 72)
 	close.add_theme_font_size_override("font_size", 28)
 	_style_button(close, Color(0.11, 0.55, 0.5))
-	close.pressed.connect(func() -> void: sfx.play("click"); dim.queue_free(); panel.queue_free())
 	vbox.add_child(close)
+	# Dismiss: tap ANYWHERE (dim, panel, X, or Got it!) closes the popup.
+	# The old popup trapped the player: its long text pushed the close
+	# button off the bottom of the panel, so there was no way out.
+	var dismiss := func() -> void:
+		sfx.play("click")
+		dim.queue_free()
+		panel.queue_free()
+	var tap := func(event: InputEvent) -> void:
+		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+			dismiss.call()
+		elif event is InputEventScreenTouch and event.pressed:
+			dismiss.call()
+	dim.gui_input.connect(tap)
+	panel.gui_input.connect(tap)
+	xbtn.pressed.connect(dismiss)
+	close.pressed.connect(dismiss)
