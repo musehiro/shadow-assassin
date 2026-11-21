@@ -251,23 +251,30 @@ jobs:
 
       - name: Publish APK to "latest" release
         run: |
+          set -e
           REPO="musehiro/shadow-assassin"
           API="https://api.github.com/repos/$REPO"
           AUTH="Authorization: Bearer $GITHUB_TOKEN"
-          RID=$(curl -s -H "$AUTH" "$API/releases/tags/latest" | grep -o '"id": [0-9]*' | head -1 | grep -o '[0-9]*')
+          # NOTE: this step runs under "sh -e", so a grep that finds nothing
+          # aborts the script. Every grep pipeline ends with "|| true", and
+          # the release id is checked explicitly after the lookup/creation.
+          RID=$(curl -s -H "$AUTH" "$API/releases/tags/latest" | grep -o '"id": [0-9]*' | head -1 | grep -o '[0-9]*' || true)
           if [ -z "$RID" ]; then
+            echo "No latest release yet - creating it"
             RID=$(curl -s -X POST -H "$AUTH" -H "Accept: application/vnd.github+json" \
               -d '{"tag_name":"latest","name":"Latest build","body":"Latest debug APK built from main. Install on Android to play.","draft":false,"prerelease":true}' \
-              "$API/releases" | grep -o '"id": [0-9]*' | head -1 | grep -o '[0-9]*')
+              "$API/releases" | grep -o '"id": [0-9]*' | head -1 | grep -o '[0-9]*' || true)
           fi
           echo "release id: $RID"
-          AID=$(curl -s -H "$AUTH" "$API/releases/$RID/assets" | tr ',' '\n' | grep -B2 '"name": "ShadowAssassin-debug.apk"' | grep -o '"id": [0-9]*' | head -1 | grep -o '[0-9]*')
+          test -n "$RID" || { echo "ERROR: could not find or create the latest release"; exit 1; }
+          AID=$(curl -s -H "$AUTH" "$API/releases/$RID/assets" | tr ',' '\n' | grep -B2 '"name": "ShadowAssassin-debug.apk"' | grep -o '"id": [0-9]*' | head -1 | grep -o '[0-9]*' || true)
           if [ -n "$AID" ]; then
             echo "deleting old asset $AID"
             curl -s -X DELETE -H "$AUTH" "$API/releases/assets/$AID"
           fi
-          curl -s -X POST -H "$AUTH" -H "Content-Type: application/vnd.android.package-archive" \
+          UPLOAD=$(curl -s -X POST -H "$AUTH" -H "Content-Type: application/vnd.android.package-archive" \
             --data-binary @build/ShadowAssassin-debug.apk \
-            "https://uploads.github.com/repos/$REPO/releases/$RID/assets?name=ShadowAssassin-debug.apk"
+            "https://uploads.github.com/repos/$REPO/releases/$RID/assets?name=ShadowAssassin-debug.apk")
+          echo "$UPLOAD" | grep -q '"name": "ShadowAssassin-debug.apk"' || { echo "ERROR: asset upload failed:"; echo "$UPLOAD"; exit 1; }
           echo "APK published:"
           echo "https://github.com/$REPO/releases/download/latest/ShadowAssassin-debug.apk"
