@@ -11,6 +11,11 @@ static func load_data() -> Dictionary:
 	var data := {
 		"unlocked": 0, "stars": {}, "total_coins": 0, "total_gems": 0,
 		"muted": false, "characters_owned": ["shadow"], "selected_character": "shadow",
+		# v3 weapons: knife owned from the start, gun locked until bought
+		# (500 coins) or unlocked with a rewarded ad. Old saves get these
+		# defaults, so nothing already saved is ever lost.
+		"weapons_owned": ["knife"], "active_weapon": "knife",
+		"levels_completed": 0,
 	}
 	var cfg := ConfigFile.new()
 	if cfg.load(PATH) != OK:
@@ -24,6 +29,12 @@ static func load_data() -> Dictionary:
 	if owned.is_empty():
 		owned = ["shadow"]
 	data["characters_owned"] = owned
+	var weapons_owned: Array = cfg.get_value("progress", "weapons_owned", ["knife"])
+	if weapons_owned.is_empty():
+		weapons_owned = ["knife"]
+	data["weapons_owned"] = weapons_owned
+	data["active_weapon"] = String(cfg.get_value("progress", "active_weapon", "knife"))
+	data["levels_completed"] = int(cfg.get_value("progress", "levels_completed", 0))
 	var stars := {}
 	for i in range(LEVEL_COUNT):
 		stars[i] = int(cfg.get_value("stars", "level_%d" % i, 0))
@@ -38,6 +49,9 @@ static func save_data(data: Dictionary) -> void:
 	cfg.set_value("progress", "total_gems", int(data.get("total_gems", 0)))
 	cfg.set_value("progress", "selected_character", String(data.get("selected_character", "shadow")))
 	cfg.set_value("progress", "characters_owned", Array(data.get("characters_owned", ["shadow"])))
+	cfg.set_value("progress", "weapons_owned", Array(data.get("weapons_owned", ["knife"])))
+	cfg.set_value("progress", "active_weapon", String(data.get("active_weapon", "knife")))
+	cfg.set_value("progress", "levels_completed", int(data.get("levels_completed", 0)))
 	cfg.set_value("settings", "muted", bool(data.get("muted", false)))
 	var stars: Dictionary = data.get("stars", {})
 	for k in stars.keys():

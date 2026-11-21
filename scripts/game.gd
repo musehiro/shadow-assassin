@@ -1,9 +1,12 @@
 class_name ShadowGame
 extends Node2D
 ## Shadow Assassin — top-down 2D stealth game controller.
-## Tap a floor tile to move; drag to steer. Walk into a guard to kill him.
+## Tap a floor tile to move; drag to steer (draw a line and the assassin
+## walks along it). Walk into a guard to kill him.
 ## Stay out of the white vision cones — a guard who sees you turns and SHOOTS.
-## Kill every guard to clear the level. No stars; cash + gems are the reward.
+## Win = collect the KEY (near the guards), then reach the bright-green
+## EXIT square. Killing guards is how you get to the key safely. No stars;
+## cash + gems are the reward.
 
 signal exit_to_menu
 signal retry_level
@@ -37,12 +40,14 @@ const TEX := {
 	"gem_purple": "res://art/gem_purple.png",
 	"star": "res://art/star.png",
 	"poof": "res://art/poof.png",
+	"key": "res://art/key.png",
+	"exit": "res://art/exit.png",
 }
 
 ## Themes per level band — one art set, four tints.
 ## level.get("theme") wins; otherwise derived from the level number.
 const THEMES := {
-	"warehouse": {"floor": Color(0.72, 0.74, 0.76), "floor_alt": Color(0.62, 0.64, 0.66), "wall": Color(0.62, 0.62, 0.66), "crate": Color(1, 1, 1), "bg": Color(0.05, 0.05, 0.06)},
+	"warehouse": {"floor": Color(1.0, 1.0, 1.0), "floor_alt": Color(0.96, 0.96, 0.97), "wall": Color(1.0, 1.0, 1.0), "crate": Color(1, 1, 1), "bg": Color(0.05, 0.05, 0.06)},
 	"cyber": {"floor": Color(0.42, 0.48, 0.95), "floor_alt": Color(0.36, 0.4, 0.85), "wall": Color(0.55, 0.42, 1.0), "crate": Color(0.7, 0.8, 1.0), "bg": Color(0.04, 0.03, 0.12)},
 	"lab": {"floor": Color(1.25, 1.28, 1.3), "floor_alt": Color(1.1, 1.14, 1.16), "wall": Color(0.95, 0.97, 1.0), "crate": Color(0.9, 0.95, 1.0), "bg": Color(0.7, 0.73, 0.76)},
 	"prison": {"floor": Color(0.5, 0.52, 0.58), "floor_alt": Color(0.42, 0.44, 0.5), "wall": Color(0.38, 0.4, 0.46), "crate": Color(0.6, 0.62, 0.68), "bg": Color(0.03, 0.03, 0.04)},
@@ -84,7 +89,7 @@ var _coin_label: Label
 var _target_label: Label
 var _health_label: Label
 var _gems_label: Label
-var _hint_label: Label
+var _key_icon: Sprite2D
 var _banner_label: Label
 var _opening_label: Label
 var _overlay: CanvasLayer
@@ -105,6 +110,26 @@ var _drag_repath := 0.0
 var _revive_time_left := 0.0
 var _revive_button: Button
 var _start_tile := Vector2i(1, 1)
+# v3 weapons + ads
+var _weapon_ui: WeaponUI
+var _gun_cooldown := 0.0
+var _gun_target: Guard = null
+var _coins_doubled := false
+var _double_button: Button
+var _overlay_body_label: Label
+var _shop_paused := false
+var _ad_connected := false
+var player_shots_fired := 0
+# v3 key + exit win condition
+var key_tile := Vector2i(-1, -1)
+var exit_tile := Vector2i(-1, -1)
+var key_collected := false
+var _key_node: Sprite2D
+var _exit_node: Sprite2D
+var _exit_arrow: Polygon2D
+var _exit_glow: Polygon2D
+var _exit_locked_cd := 0.0
+var _touch_down := false
 
 
 func setup(p_level_index: int, p_save: Dictionary, p_sfx: Sfx) -> void:
@@ -122,6 +147,11 @@ func setup(p_level_index: int, p_save: Dictionary, p_sfx: Sfx) -> void:
 	health = max_health
 	_build_board()
 	_build_hud()
+	_build_weapon_ui()
+	_connect_admob_signals()
+	_coins_doubled = false
+	_gun_cooldown = 0.0
+	_gun_target = null
 	_show_opening_banner()
 	sfx.start_music()
 	state = State.PLAYING
@@ -221,9 +251,12 @@ func _build_board() -> void:
 	var view: Vector2 = get_viewport_rect().size
 	origin = Vector2((view.x - COLS * TILE) * 0.5, 150.0)
 	var th: Dictionary = THEMES[theme]
-	# backdrop
+	# backdrop — mouse_filter IGNORE: a full-screen Control with the
+	# default STOP filter swallows every tap before _unhandled_input
+	# ever runs. That is exactly why v2 never moved on a real phone.
 	var bg := ColorRect.new()
 	bg.color = th["bg"]
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	var bg_layer := CanvasLayer.new()
 	bg_layer.layer = -2
@@ -298,9 +331,19 @@ func _build_board() -> void:
 					_add_pickup(t, false)
 				elif ch == "J":
 					_add_pickup(t, true)
+				elif ch == "K":
+					key_tile = t
+					_add_key(t)
+				elif ch == "E":
+					exit_tile = t
+					_add_exit(t)
 	_start_tile = start_tile
 	# AStar graph over walkable tiles
 	_rebuild_astar()
+	# Levels without K/E in the map (old data): compute them from the
+	# guards + player start with the same rules the generator uses.
+	if key_tile.x < 0 or exit_tile.x < 0:
+		_compute_key_exit_fallback()
 	# player
 	player = Player.new()
 	_board.add_child(player)
@@ -368,6 +411,94 @@ func _add_pickup(t: Vector2i, is_gem: bool) -> void:
 	coins.append({"node": node, "tile": t, "is_gem": is_gem, "value": value, "taken": false, "phase": randf() * TAU})
 
 
+func _add_key(t: Vector2i) -> void:
+	_key_node = _add_sprite(_board, TEX["key"], tile_to_world(t), 0.62)
+	_key_node.z_index = 3
+
+
+func _add_exit(t: Vector2i) -> void:
+	# Bright-green exit tile: visibly different from everything else.
+	_exit_node = _add_sprite(_board, TEX["exit"], tile_to_world(t), 1.0)
+	_exit_node.z_index = 2
+	# Pulsing glow ring under the tile.
+	var glow_pts := PackedVector2Array()
+	for i in range(24):
+		var a: float = TAU * float(i) / 24.0
+		glow_pts.append(Vector2(cos(a), sin(a)) * 40.0)
+	_exit_glow = Polygon2D.new()
+	_exit_glow.polygon = glow_pts
+	_exit_glow.color = Color(0.2, 1.0, 0.35, 0.35)
+	_exit_glow.position = tile_to_world(t)
+	_exit_glow.z_index = 1
+	_board.add_child(_exit_glow)
+	# Big bouncing arrow above the exit, pointing down at it — the
+	# player always knows where to go.
+	_exit_arrow = Polygon2D.new()
+	_exit_arrow.polygon = PackedVector2Array([
+		Vector2(-22, -14), Vector2(22, -14), Vector2(0, 16)])
+	_exit_arrow.color = Color(0.25, 1.0, 0.4, 0.95)
+	_exit_arrow.position = tile_to_world(t) + Vector2(0, -58)
+	_exit_arrow.z_index = 15
+	_board.add_child(_exit_arrow)
+
+
+func _compute_key_exit_fallback() -> void:
+	# Same rules as tools/gen_levels.py, computed live from the board:
+	# key 1-3 tiles from a patrol route near the patrol centroid (and
+	# >= 4 from the start); exit = farthest walkable tile from the start.
+	var route_tiles: Array = []
+	var all_route := {}
+	for g in level["guards"]:
+		for wp in ShadowLevels._patrol_route_tiles(g["patrol"]):
+			all_route[wp] = true
+			route_tiles.append(wp)
+	if route_tiles.is_empty():
+		return
+	var rc := Vector2.ZERO
+	for rt in route_tiles:
+		rc += Vector2(rt)
+	rc /= float(route_tiles.size())
+	var best_key := Vector2i(-1, -1)
+	var best_kd := INF
+	for y in range(ROWS):
+		for x in range(COLS):
+			var t := Vector2i(x, y)
+			if not is_walkable(t):
+				continue
+			if t == _start_tile:
+				continue
+			var dmin := INF
+			for rt in route_tiles:
+				dmin = minf(dmin, float(absi(rt.x - x) + absi(rt.y - y)))
+			if dmin < 1.0 or dmin > 3.0:
+				continue
+			if absi(x - _start_tile.x) + absi(y - _start_tile.y) < 4:
+				continue
+			var dc: float = Vector2(t).distance_to(rc)
+			if dc < best_kd:
+				best_kd = dc
+				best_key = t
+	var best_exit := Vector2i(-1, -1)
+	var best_ed := -1
+	for y in range(ROWS):
+		for x in range(COLS):
+			var t := Vector2i(x, y)
+			if not is_walkable(t) or all_route.has(t):
+				continue
+			var path: Array = find_path(_start_tile, t)
+			if path.is_empty():
+				continue
+			if path.size() > best_ed:
+				best_ed = path.size()
+				best_exit = t
+	if key_tile.x < 0 and best_key.x >= 0:
+		key_tile = best_key
+		_add_key(best_key)
+	if exit_tile.x < 0 and best_exit.x >= 0:
+		exit_tile = best_exit
+		_add_exit(best_exit)
+
+
 func _add_bush(t: Vector2i) -> void:
 	var node := _add_sprite(_board, TEX["bush"], tile_to_world(t), 1.0)
 	if node.texture == null:
@@ -416,6 +547,7 @@ func _build_hud() -> void:
 	add_child(_hud)
 	var top := ColorRect.new()
 	top.color = Color(0.04, 0.05, 0.06, 0.92)
+	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	top.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	top.custom_minimum_size = Vector2(0, 108)
 	_hud.add_child(top)
@@ -431,6 +563,7 @@ func _build_hud() -> void:
 	_hud.add_child(target_icon)
 	_target_label = Label.new()
 	_target_label.position = Vector2(64, 52)
+	_target_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_target_label.add_theme_font_size_override("font_size", 38)
 	_target_label.add_theme_color_override("font_color", Color(1, 1, 1))
 	_target_label.add_theme_color_override("font_outline_color", Color(0, 0, 0))
@@ -439,6 +572,7 @@ func _build_hud() -> void:
 	# Health: hearts, centre of the top bar.
 	_health_label = Label.new()
 	_health_label.position = Vector2(300, 58)
+	_health_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_health_label.add_theme_font_size_override("font_size", 32)
 	_health_label.add_theme_color_override("font_color", Color(1, 0.25, 0.3))
 	_health_label.add_theme_color_override("font_outline_color", Color(0, 0, 0))
@@ -447,11 +581,20 @@ func _build_hud() -> void:
 	# Gems, right of the hearts.
 	_gems_label = Label.new()
 	_gems_label.position = Vector2(470, 62)
+	_gems_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_gems_label.add_theme_font_size_override("font_size", 26)
 	_gems_label.add_theme_color_override("font_color", Color(0.5, 0.9, 1))
 	_gems_label.add_theme_color_override("font_outline_color", Color(0, 0, 0))
 	_gems_label.add_theme_constant_override("outline_size", 6)
 	_hud.add_child(_gems_label)
+	# Key status, right of the gems: grey key until collected, gold after.
+	_key_icon = Sprite2D.new()
+	if ResourceLoader.exists(TEX["key"]):
+		_key_icon.texture = load(TEX["key"])
+	_key_icon.position = Vector2(600, 78)
+	_key_icon.scale = Vector2(0.34, 0.34)
+	_key_icon.modulate = Color(0.45, 0.45, 0.45, 0.9)
+	_hud.add_child(_key_icon)
 	var pause_btn := _make_button("II", Vector2(640, 16), Vector2(64, 64), 26)
 	pause_btn.pressed.connect(_on_pause_pressed)
 	_hud.add_child(pause_btn)
@@ -459,6 +602,7 @@ func _build_hud() -> void:
 	_banner_label = Label.new()
 	_banner_label.position = Vector2(0, 420)
 	_banner_label.size = Vector2(720, 90)
+	_banner_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_banner_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_banner_label.add_theme_font_size_override("font_size", 52)
 	_banner_label.add_theme_color_override("font_color", Color(1, 0.85, 0.3))
@@ -469,19 +613,14 @@ func _build_hud() -> void:
 	_opening_label = Label.new()
 	_opening_label.position = Vector2(0, 460)
 	_opening_label.size = Vector2(720, 90)
+	_opening_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_opening_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_opening_label.add_theme_font_size_override("font_size", 40)
+	_opening_label.add_theme_font_size_override("font_size", 36)
 	_opening_label.add_theme_color_override("font_color", Color(1, 1, 1))
 	_opening_label.add_theme_color_override("font_outline_color", Color(0, 0, 0))
 	_opening_label.add_theme_constant_override("outline_size", 8)
 	_opening_label.visible = false
 	_hud.add_child(_opening_label)
-	_hint_label = Label.new()
-	_hint_label.text = String(level["hint"])
-	_hint_label.position = Vector2(16, get_viewport_rect().size.y - 34)
-	_hint_label.add_theme_font_size_override("font_size", 20)
-	_hint_label.add_theme_color_override("font_color", Color(0.75, 0.9, 0.9))
-	_hud.add_child(_hint_label)
 	# Red edge blips pointing at off-screen enemies.
 	_blip_layer = CanvasLayer.new()
 	_blip_layer.layer = 15
@@ -528,14 +667,18 @@ func _update_hud() -> void:
 		hearts += "♥" if i < health else "♡"
 	_health_label.text = hearts
 	_gems_label.text = "◆ %d" % (int(save.get("total_gems", 0)) + gems_earned)
+	if _key_icon != null:
+		_key_icon.modulate = Color(1, 0.85, 0.25) if key_collected else Color(0.45, 0.45, 0.45, 0.9)
 
 
 func _show_opening_banner() -> void:
-	_opening_label.text = "Eliminate all %d guards!" % targets_total
+	# The objective, big and obvious at level start (this replaces the
+	# old tiny hint text at the bottom of the screen).
+	_opening_label.text = "Get the KEY, then reach the EXIT!"
 	_opening_label.visible = true
 	_opening_label.modulate.a = 1.0
 	var tw := _opening_label.create_tween()
-	tw.tween_interval(1.6)
+	tw.tween_interval(2.6)
 	tw.tween_property(_opening_label, "modulate:a", 0.0, 0.6)
 	tw.tween_callback(func() -> void: _opening_label.visible = false)
 
@@ -555,8 +698,24 @@ func _show_banner(text: String, color: Color = Color(1, 0.85, 0.3)) -> void:
 	tw.tween_callback(func() -> void: _banner_label.visible = false)
 
 
-func _unhandled_input(event: InputEvent) -> void:
+func _input(event: InputEvent) -> void:
+	# Board input runs through _input (NOT _unhandled_input) on purpose.
+	# ROOT CAUSE of the v2 phone failure: the board backdrop is a
+	# full-screen ColorRect whose default mouse_filter (STOP) swallows
+	# every tap before _unhandled_input ever runs — the handler existed
+	# but never fired on a real phone. _input runs before GUI dispatch,
+	# so taps always reach the game; the guards below keep HUD/dock
+	# taps from moving the player, and the event still flows on to the
+	# buttons (we never consume it).
 	if state != State.PLAYING:
+		return
+	if event is InputEventScreenTouch:
+		_touch_down = (event as InputEventScreenTouch).pressed
+	# A real touch also arrives as an emulated mouse event; the touch
+	# branch below already handled it, so skip the mouse twin while a
+	# finger is down (otherwise every touch-shot would double-fire and
+	# show a spurious "Reloading…" popup).
+	if _touch_down and (event is InputEventMouseButton or event is InputEventMouseMotion):
 		return
 	var pos := Vector2.ZERO
 	var tapped := false
@@ -579,20 +738,34 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event is InputEventScreenDrag:
 		pos = (event as InputEventScreenDrag).position
 		dragging = true
+	if not tapped and not dragging:
+		return
 	if pos.y < 110.0:
 		return # top HUD bar — buttons own this strip
+	if _in_weapon_dock(pos):
+		return # weapon dock buttons own this strip
 	if tapped:
 		_issue_move(pos)
 	elif dragging:
-		# Drag-to-steer: continuously re-target movement (throttled in _issue_move).
+		# Drag-to-steer: continuously re-target movement (throttled in
+		# _issue_move). The tap that started the drag already moved the
+		# player at once — no need to lift the finger.
 		_issue_move(pos, true)
+
+
+func _in_weapon_dock(pos: Vector2) -> bool:
+	# Same rect WeaponUI docks into (right edge, over the wall column).
+	var dock := Rect2(
+		Vector2(origin.x + COLS * TILE - 64.0, origin.y + ROWS * TILE * 0.5 - 105.0),
+		Vector2(60.0, 210.0))
+	return dock.has_point(pos)
 
 
 func _issue_move(pos: Vector2, is_drag: bool = false) -> void:
 	if is_drag:
 		if _drag_repath > 0.0:
 			return
-		_drag_repath = 0.12
+		_drag_repath = 0.08
 	var tile := world_to_tile(pos)
 	# Forgiving taps: a tap within a full tile of a guard targets the guard.
 	var best_guard: Guard = null
@@ -603,6 +776,26 @@ func _issue_move(pos: Vector2, is_drag: bool = false) -> void:
 			if d < best_d:
 				best_d = d
 				best_guard = g
+	if best_guard != null and ShadowWeapons.active_weapon(save) == ShadowWeapons.GUN_ID:
+		# Gun equipped: tapping a guard shoots instead of walking to him.
+		var gd: float = player.position.distance_to(best_guard.position)
+		if gd <= ShadowWeapons.GUN_RANGE and has_los(player.position, best_guard.position):
+			if _gun_cooldown <= 0.0:
+				_fire_gun(best_guard)
+			else:
+				_spawn_popup(player.position + Vector2(0, -60), "Reloading…", Color(1, 0.85, 0.3))
+			_gun_target = null
+			return
+		# Out of range / no line of sight: walk toward the guard so the
+		# shot can be taken on arrival (auto-fire, see _process).
+		_gun_target = best_guard
+		_tap_ring_pos = best_guard.position
+		_tap_ring_t = 0.0
+		_tap_ring.visible = true
+		player.set_path(find_path(world_to_tile(player.position), world_to_tile(best_guard.position)))
+		sfx.play("click")
+		return
+	_gun_target = null
 	if best_guard != null:
 		tile = world_to_tile(best_guard.position)
 		_tap_ring_pos = best_guard.position
@@ -617,6 +810,8 @@ func _issue_move(pos: Vector2, is_drag: bool = false) -> void:
 func _process(delta: float) -> void:
 	if _drag_repath > 0.0:
 		_drag_repath -= delta
+	if _exit_locked_cd > 0.0:
+		_exit_locked_cd -= delta
 	if _revive_time_left > 0.0 and state == State.LOST and _revive_button != null:
 		_revive_time_left -= delta
 		if _revive_time_left <= 0.0:
@@ -629,6 +824,16 @@ func _process(delta: float) -> void:
 	_time += delta
 	if _invuln > 0.0:
 		_invuln -= delta
+	if _gun_cooldown > 0.0:
+		_gun_cooldown -= delta
+	# Gun auto-fire: tapped a guard while out of range, walked into range.
+	if _gun_target != null:
+		if not is_instance_valid(_gun_target) or not _gun_target.alive:
+			_gun_target = null
+		elif ShadowWeapons.active_weapon(save) == ShadowWeapons.GUN_ID and _gun_cooldown <= 0.0:
+			if player.position.distance_to(_gun_target.position) <= ShadowWeapons.GUN_RANGE and has_los(player.position, _gun_target.position):
+				_fire_gun(_gun_target)
+				_gun_target = null
 	if _kill_chain_timer > 0.0:
 		_kill_chain_timer -= delta
 		if _kill_chain_timer <= 0.0:
@@ -659,10 +864,15 @@ func _process(delta: float) -> void:
 			_spawn_poof(tile_to_world(c["tile"]), 0.5)
 			_update_hud()
 	# CONTACT KILL — walking into a guard kills him instantly.
+	# Knife only: with the gun equipped there is no contact kill, so the
+	# gun is a real trade-off (ranged + loud, helpless up close).
+	var knife_active := ShadowWeapons.active_weapon(save) == ShadowWeapons.KNIFE_ID
 	for g in guards.duplicate():
 		if not g.alive:
 			continue
 		if player.position.distance_to(g.position) < ELIM_DIST:
+			if not knife_active:
+				continue
 			if not g.can_be_killed_from(player.position):
 				if g.shield_block_cd <= 0.0:
 					g.shield_block_cd = 0.8
@@ -695,9 +905,34 @@ func _process(delta: float) -> void:
 	_update_path_visuals(delta)
 	# red edge blips toward off-screen enemies
 	_update_blips()
-	# win?
-	if targets_left <= 0:
-		_start_win()
+	# KEY pickup (bobbing key, collected on touch).
+	if _key_node != null and not key_collected:
+		_key_node.position.y = tile_to_world(key_tile).y + sin(_time * 3.0) * 4.0
+		if player.position.distance_to(tile_to_world(key_tile)) < 40.0:
+			key_collected = true
+			_key_node.visible = false
+			_spawn_poof(tile_to_world(key_tile), 0.6)
+			sfx.play("gem")
+			_show_banner("KEY COLLECTED!", Color(1, 0.85, 0.25))
+			_update_hud()
+	# EXIT arrow bob + pulse so the way out always reads.
+	if _exit_arrow != null:
+		_exit_arrow.position = tile_to_world(exit_tile) + Vector2(0, -58 + sin(_time * 3.0) * 5.0)
+		_exit_arrow.modulate.a = 0.75 + sin(_time * 4.0) * 0.25
+	if _exit_glow != null:
+		var gs: float = 1.0 + sin(_time * 2.0) * 0.08
+		_exit_glow.scale = Vector2(gs, gs)
+	# WIN = collect the key, then reach the exit square. Killing guards
+	# is how you get to the key safely — it is no longer the win
+	# trigger. Reaching the exit without the key only reminds you
+	# (throttled so it cannot spam).
+	if exit_tile.x >= 0 and player.position.distance_to(tile_to_world(exit_tile)) < 34.0:
+		if key_collected:
+			_start_win()
+		elif _exit_locked_cd <= 0.0:
+			_exit_locked_cd = 2.5
+			_spawn_popup(player.position + Vector2(0, -60), "LOCKED — get the KEY first!", Color(1, 0.6, 0.2))
+			sfx.play("click")
 
 
 func _update_path_visuals(delta: float) -> void:
@@ -753,18 +988,24 @@ func _update_blips() -> void:
 
 # ------------------------------------------------------------------ combat
 
-func spawn_bullet(from: Vector2, dir: Vector2, speed: float, damage: int, destroy_crates: bool) -> void:
+func spawn_bullet(from: Vector2, dir: Vector2, speed: float, damage: int, destroy_crates: bool, owner: String = "guard") -> void:
 	var node := Polygon2D.new()
-	node.polygon = PackedVector2Array([Vector2(-9, -2.5), Vector2(9, -2.5), Vector2(9, 2.5), Vector2(-9, 2.5)])
-	node.color = Color(1, 0.9, 0.4)
+	# Player tracer: longer, brighter yellow-white so your shots read
+	# differently from guard fire at a glance.
+	var half_len := 14.0 if owner == "player" else 9.0
+	node.polygon = PackedVector2Array([Vector2(-half_len, -2.5), Vector2(half_len, -2.5), Vector2(half_len, 2.5), Vector2(-half_len, 2.5)])
+	node.color = Color(1, 0.95, 0.45) if owner == "player" else Color(1, 0.9, 0.4)
 	node.position = from
 	node.rotation = dir.angle()
 	node.z_index = 30
 	_fx.add_child(node)
 	_bullets.append({"node": node, "pos": from, "dir": dir, "speed": speed,
 		"damage": damage, "kind": "bullet", "fuse": 0.0, "blast": 0.0,
-		"destroy_crates": destroy_crates, "life": 2.0})
-	bullets_fired += 1
+		"destroy_crates": destroy_crates, "life": 2.0, "owner": owner})
+	if owner == "guard":
+		bullets_fired += 1
+	else:
+		player_shots_fired += 1
 
 
 func spawn_grenade(from: Vector2, target: Vector2) -> void:
@@ -807,6 +1048,22 @@ func _update_bullets(delta: float) -> void:
 				destroy_crate(tile)
 			_spawn_poof(b["pos"], 0.3)
 			_remove_bullet(b)
+			continue
+		if String(b.get("owner", "guard")) == "player":
+			# Your shot: it kills the guard it hits — unless a shielded
+			# guard faces you (his shield blocks bullets like contact
+			# kills). Shoot shielded guards from behind.
+			for g in guards.duplicate():
+				if not g.alive:
+					continue
+				if g.position.distance_to(b["pos"]) < 30.0:
+					if not g.can_be_killed_from(player.position):
+						_spawn_popup(g.position + Vector2(0, -60), "BLOCKED!", Color(0.6, 0.8, 1.0))
+						sfx.play("click")
+					else:
+						_kill_guard(g)
+					_remove_bullet(b)
+					break
 			continue
 		if player.position.distance_to(b["pos"]) < 24.0:
 			damage_player(int(b["damage"]))
@@ -1037,6 +1294,178 @@ func _spawn_poof(at: Vector2, p_scale: float) -> void:
 	timer.timeout.connect(p.queue_free)
 
 
+# ------------------------------------------------------------------ weapons + ads (v3)
+
+func _build_weapon_ui() -> void:
+	_weapon_ui = WeaponUI.new()
+	add_child(_weapon_ui)
+	_weapon_ui.setup(self)
+	_weapon_ui.weapon_selected.connect(_on_weapon_selected)
+	_weapon_ui.unlock_with_coins.connect(_on_unlock_with_coins)
+	_weapon_ui.unlock_with_ad.connect(_on_unlock_with_ad)
+	_weapon_ui.shop_opened.connect(_on_shop_opened)
+	_weapon_ui.shop_closed.connect(_on_shop_closed)
+
+
+func _on_weapon_selected(weapon_id: String) -> void:
+	if state != State.PLAYING:
+		return
+	if ShadowWeapons.set_active(save, weapon_id):
+		_gun_target = null
+		_weapon_ui.refresh()
+		sfx.play("click")
+
+
+func _on_unlock_with_coins(weapon_id: String) -> void:
+	if ShadowWeapons.unlock_with_coins(save, weapon_id):
+		ShadowWeapons.set_active(save, weapon_id)
+		_weapon_ui.refresh()
+		_weapon_ui.close_shop()
+		_weapon_ui.show_note("%s unlocked!" % ShadowWeapons.weapon_def(weapon_id)["name"])
+		sfx.play("gem")
+	else:
+		_weapon_ui.show_shop_note("Not enough coins — you need %d." % ShadowWeapons.price_of(weapon_id))
+
+
+func _on_unlock_with_ad(weapon_id: String) -> void:
+	if not _admob_ready():
+		_weapon_ui.show_shop_note("No ad right now — try coins instead.")
+		return
+	_weapon_ui.show_shop_note("Loading ad…")
+	_connect_admob_signals()
+	if not _show_rewarded("unlock_gun"):
+		# No AdMob at all: never leave the shop stuck on "Loading ad…".
+		_weapon_ui.show_shop_note("No ad right now — try coins instead.")
+
+
+func _on_shop_opened() -> void:
+	# Freeze the level while the player decides — guards must not shoot
+	# them through the shop panel.
+	if state == State.PLAYING:
+		_shop_paused = true
+		state = State.PAUSED
+
+
+func _on_shop_closed() -> void:
+	if _shop_paused:
+		_shop_paused = false
+		if state == State.PAUSED:
+			state = State.PLAYING
+
+
+## Fire one gun shot at a guard. LOUD: the shot itself alerts nearby
+## guards (like a kill noise), even if the bullet misses or is blocked.
+func _fire_gun(target: Guard) -> void:
+	if state != State.PLAYING or target == null or not target.alive:
+		return
+	_gun_cooldown = ShadowWeapons.GUN_COOLDOWN
+	var dir: Vector2 = (target.position - player.position).normalized()
+	spawn_bullet(player.position + dir * 30.0, dir, ShadowWeapons.GUN_BULLET_SPEED, 1, false, "player")
+	sfx.play("shoot")
+	noise_at(player.position, 280.0)
+
+
+# ------------------------------------------------------------------ AdMob (defensive)
+# The AdMob autoload is integrated by a parallel agent. Every call here
+# goes through get_node_or_null("/root/AdMob") + has_method/has_signal
+# guards, so the game plays exactly the same with no AdMob present:
+# rewarded buttons fall back to the coin price and a short note.
+# Contract: show_rewarded(placement), show_interstitial(),
+# is_rewarded_ready() -> bool, signals rewarded_earned(placement),
+# rewarded_failed(placement). Placements: "unlock_gun", "double_coins".
+
+func _admob() -> Node:
+	return get_node_or_null("/root/AdMob")
+
+
+func _admob_ready() -> bool:
+	var adm := _admob()
+	if adm == null or not adm.has_method("is_rewarded_ready"):
+		return false
+	return bool(adm.call("is_rewarded_ready"))
+
+
+func _show_rewarded(placement: String) -> bool:
+	var adm := _admob()
+	if adm == null or not adm.has_method("show_rewarded"):
+		return false
+	adm.call("show_rewarded", placement)
+	return true
+
+
+func _connect_admob_signals() -> void:
+	if _ad_connected:
+		return
+	var adm := _admob()
+	if adm == null:
+		return
+	if adm.has_signal("rewarded_earned"):
+		adm.connect("rewarded_earned", _on_rewarded_earned)
+	if adm.has_signal("rewarded_failed"):
+		adm.connect("rewarded_failed", _on_rewarded_failed)
+	_ad_connected = true
+
+
+func _on_rewarded_earned(placement: String) -> void:
+	match placement:
+		"unlock_gun":
+			ShadowWeapons.unlock_free(save, ShadowWeapons.GUN_ID)
+			ShadowWeapons.set_active(save, ShadowWeapons.GUN_ID)
+			if is_instance_valid(_weapon_ui):
+				_weapon_ui.refresh()
+				_weapon_ui.close_shop()
+				_weapon_ui.show_note("Gun unlocked!")
+			sfx.play("gem")
+		"double_coins":
+			_coins_doubled = true
+			if is_instance_valid(_overlay_body_label):
+				_overlay_body_label.text = "Level %d cleared!\nCash  +%d  (2x ad bonus!)\nGems  +%d ◆" % [level_index + 1, cash_earned * 2, gems_earned]
+			if is_instance_valid(_double_button):
+				_double_button.text = "2x APPLIED ✓"
+				_double_button.disabled = true
+			sfx.play("cash")
+
+
+func _on_rewarded_failed(placement: String) -> void:
+	match placement:
+		"unlock_gun":
+			if is_instance_valid(_weapon_ui):
+				_weapon_ui.show_shop_note("Ad failed — try coins instead.")
+		"double_coins":
+			if is_instance_valid(_double_button):
+				_double_button.text = "Watch ad for 2x coins"
+				_double_button.disabled = false
+				if is_instance_valid(_overlay_body_label):
+					_overlay_body_label.text = "Level %d cleared!\nCash  +%d\nGems  +%d ◆\n(Ad failed — try again)" % [level_index + 1, cash_earned, gems_earned]
+
+
+func _on_double_coins_pressed() -> void:
+	if _coins_doubled or state != State.WON:
+		return
+	if not _admob_ready():
+		# No ad available: say so on the button, briefly, then let the
+		# player try again (an ad may load) or just Collect.
+		if is_instance_valid(_double_button):
+			_double_button.text = "No ad right now"
+			_double_button.disabled = true
+			var btn := _double_button
+			get_tree().create_timer(2.5).timeout.connect(func() -> void:
+				if is_instance_valid(btn) and not _coins_doubled:
+					btn.text = "Watch ad for 2x coins"
+					btn.disabled = false
+			)
+		return
+	if is_instance_valid(_double_button):
+		_double_button.text = "Loading ad…"
+		_double_button.disabled = true
+	_connect_admob_signals()
+	if not _show_rewarded("double_coins"):
+		# No AdMob at all: restore the button instead of stranding it.
+		if is_instance_valid(_double_button):
+			_double_button.text = "Watch ad for 2x coins"
+			_double_button.disabled = false
+
+
 # ------------------------------------------------------------------ win / lose
 
 func _start_win() -> void:
@@ -1050,10 +1479,21 @@ func _start_win() -> void:
 
 
 func _bank_rewards() -> void:
-	save["total_coins"] = int(save.get("total_coins", 0)) + cash_earned
+	var coins_to_bank := cash_earned
+	if _coins_doubled:
+		coins_to_bank *= 2
+	save["total_coins"] = int(save.get("total_coins", 0)) + coins_to_bank
 	save["total_gems"] = int(save.get("total_gems", 0)) + gems_earned
 	save["unlocked"] = maxi(int(save.get("unlocked", 0)), mini(level_index + 1, ShadowLevels.get_levels().size() - 1))
+	save["levels_completed"] = int(save.get("levels_completed", 0)) + 1
 	ShadowSave.save_data(save)
+	# Interstitial after every 2nd completed level. Defensive: the AdMob
+	# autoload may not exist yet (parallel integration) — then nothing
+	# happens and the game carries on.
+	if int(save["levels_completed"]) % 2 == 0:
+		var adm := _admob()
+		if adm != null and adm.has_method("show_interstitial"):
+			adm.call("show_interstitial")
 
 
 func _show_completed() -> void:
@@ -1062,6 +1502,7 @@ func _show_completed() -> void:
 	_show_overlay("COMPLETED!", Color(1, 0.85, 0.4),
 		"Level %d cleared!\nCash  +%d\nGems  +%d ◆" % [level_index + 1, cash_earned, gems_earned], [
 		{"text": "Collect  →  Next Level", "action": "collect"},
+		{"text": "Watch ad for 2x coins", "action": "double"},
 		{"text": "Replay", "action": "retry"},
 		{"text": "Level Menu", "action": "menu"},
 	])
@@ -1172,6 +1613,7 @@ func _show_overlay(title: String, title_color: Color, body: String, buttons: Arr
 	body_label.add_theme_color_override("font_color", Color(1, 1, 1))
 	body_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	vbox.add_child(body_label)
+	_overlay_body_label = body_label
 	for b in buttons:
 		var btn := _make_button(String(b["text"]), Vector2.ZERO, Vector2(440, 72), 28)
 		btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
@@ -1184,6 +1626,9 @@ func _show_overlay(title: String, title_color: Color, body: String, buttons: Arr
 			btn.pressed.connect(func() -> void: next_level.emit())
 		elif action == "collect":
 			btn.pressed.connect(func() -> void: _bank_rewards(); next_level.emit())
+		elif action == "double":
+			_double_button = btn
+			btn.pressed.connect(_on_double_coins_pressed)
 		elif action == "revive":
 			_revive_button = btn
 			btn.pressed.connect(_revive)
@@ -1203,6 +1648,19 @@ func _on_resume_pressed() -> void:
 # ------------------------------------------------------------------ debug hooks
 func debug_move_to_tile(t: Vector2i) -> void:
 	player.set_path(find_path(world_to_tile(player.position), t))
+
+
+func debug_teleport_to_tile(t: Vector2i) -> void:
+	player.position = tile_to_world(t)
+	player.stop()
+
+
+func debug_collect_key() -> void:
+	if not key_collected:
+		key_collected = true
+		if _key_node != null:
+			_key_node.visible = false
+		_update_hud()
 
 
 func debug_teleport_behind_guard(i: int) -> void:

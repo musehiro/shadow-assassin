@@ -18,7 +18,19 @@
     "traps": 0,
     "trap_kinds": [],
     "density": 0.326,
-    "tries": 1
+    "tries": 1,
+    "patrol_lengths": [
+      16,
+      16
+    ],
+    "key": [
+      3,
+      12
+    ],
+    "exit": [
+      4,
+      1
+    ]
   },
   {
     "level": 2,
@@ -36,11 +48,24 @@
     "vision_half_deg": 40.3,
     "coins": 7,
     "gems": 1,
-    "bushes": 3,
+    "bushes": 2,
     "traps": 0,
     "trap_kinds": [],
     "density": 0.341,
-    "tries": 1
+    "tries": 1,
+    "patrol_lengths": [
+      16,
+      16,
+      16
+    ],
+    "key": [
+      4,
+      9
+    ],
+    "exit": [
+      9,
+      2
+    ]
   },
   {
     "level": 3,
@@ -58,11 +83,24 @@
     "vision_half_deg": 40.6,
     "coins": 7,
     "gems": 1,
-    "bushes": 3,
+    "bushes": 2,
     "traps": 0,
     "trap_kinds": [],
     "density": 0.348,
-    "tries": 1
+    "tries": 1,
+    "patrol_lengths": [
+      4,
+      4,
+      16
+    ],
+    "key": [
+      4,
+      11
+    ],
+    "exit": [
+      5,
+      10
+    ]
   },
   {
     "level": 4,
@@ -85,7 +123,21 @@
     "traps": 0,
     "trap_kinds": [],
     "density": 0.333,
-    "tries": 1
+    "tries": 1,
+    "patrol_lengths": [
+      16,
+      16,
+      16,
+      16
+    ],
+    "key": [
+      4,
+      8
+    ],
+    "exit": [
+      7,
+      1
+    ]
   },
   {
     "level": 5,
@@ -108,7 +160,21 @@
     "traps": 0,
     "trap_kinds": [],
     "density": 0.333,
-    "tries": 1
+    "tries": 1,
+    "patrol_lengths": [
+      16,
+      16,
+      16,
+      15
+    ],
+    "key": [
+      4,
+      9
+    ],
+    "exit": [
+      2,
+      1
+    ]
   },
   {
     "level": 6,
@@ -131,7 +197,21 @@
     "traps": 0,
     "trap_kinds": [],
     "density": 0.326,
-    "tries": 1
+    "tries": 1,
+    "patrol_lengths": [
+      16,
+      16,
+      16,
+      16
+    ],
+    "key": [
+      6,
+      6
+    ],
+    "exit": [
+      9,
+      1
+    ]
   },
   {
     "level": 7,
@@ -151,11 +231,26 @@
     "vision_half_deg": 41.9,
     "coins": 9,
     "gems": 1,
-    "bushes": 3,
+    "bushes": 2,
     "traps": 0,
     "trap_kinds": [],
     "density": 0.341,
-    "tries": 1
+    "tries": 1,
+    "patrol_lengths": [
+      12,
+      12,
+      12,
+      12,
+      12
+    ],
+    "key": [
+      8,
+      10
+    ],
+    "exit": [
+      1,
+      2
+    ]
   },
   {
     "level": 8,
@@ -179,7 +274,22 @@
     "traps": 0,
     "trap_kinds": [],
     "density": 0.333,
-    "tries": 1
+    "tries": 1,
+    "patrol_lengths": [
+      12,
+      12,
+      12,
+      12,
+      12
+    ],
+    "key": [
+      5,
+      9
+    ],
+    "exit": [
+      8,
+      1
+    ]
   },
   {
     "level": 9,
@@ -203,7 +313,22 @@
     "traps": 0,
     "trap_kinds": [],
     "density": 0.348,
-    "tries": 1
+    "tries": 1,
+    "patrol_lengths": [
+      12,
+      12,
+      12,
+      12,
+      12
+    ],
+    "key": [
+      5,
+      9
+    ],
+    "exit": [
+      8,
+      11
+    ]
   },
   {
     "level": 10,
@@ -224,11 +349,27 @@
     "vision_half_deg": 42.8,
     "coins": 10,
     "gems": 2,
-    "bushes": 3,
+    "bushes": 2,
     "traps": 0,
     "trap_kinds": [],
     "density": 0.348,
-    "tries": 1
+    "tries": 1,
+    "patrol_lengths": [
+      12,
+      12,
+      12,
+      12,
+      12,
+      12
+    ],
+    "key": [
+      5,
+      10
+    ],
+    "exit": [
+      4,
+      1
+    ]
   },
   {
     "level": 11,
@@ -253,7 +394,23 @@
     "traps": 0,
     "trap_kinds": [],
     "density": 0.341,
-    "tries": 1
+    "tries": 1,
+    "patrol_lengths": [
+      12,
+      12,
+      12,
+      12,
+      12,
+      11
+    ],
+    "key": [
+      4,
+      9
+    ],
+    "exit": [
+      9,
+      3
+    ]
   },
   {
     "level": 12,
@@ -274,11 +431,27 @@
     "vision_half_deg": 43.4,
     "coins": 10,
     "gems": 2,
-    "bushes": 2,
+    "bushes": 3,
     "traps": 0,
     "trap_kinds": [],
     "density": 0.378,
-    "tries": 1
+    "tries": 1,
+    "patrol_lengths": [
+      12,
+      12,
+      12,
+      12,
+      12,
+      12
+    ],
+    "key": [
+      6,
+      9
+    ],
+    "exit": [
+      1,
+      1
+    ]
   },
   {
     "level": 13,
@@ -299,11 +472,27 @@
     "vision_half_deg": 43.7,
     "coins": 11,
     "gems": 2,
-    "bushes": 3,
+    "bushes": 2,
     "traps": 0,
     "trap_kinds": [],
     "density": 0.348,
-    "tries": 1
+    "tries": 1,
+    "patrol_lengths": [
+      12,
+      12,
+      9,
+      12,
+      12,
+      12
+    ],
+    "key": [
+      6,
+      8
+    ],
+    "exit": [
+      3,
+      7
+    ]
   },
   {
     "level": 14,
@@ -328,7 +517,23 @@
     "traps": 0,
     "trap_kinds": [],
     "density": 0.363,
-    "tries": 1
+    "tries": 1,
+    "patrol_lengths": [
+      12,
+      12,
+      12,
+      12,
+      9,
+      10
+    ],
+    "key": [
+      5,
+      13
+    ],
+    "exit": [
+      1,
+      1
+    ]
   },
   {
     "level": 15,
@@ -355,7 +560,23 @@
       "bomb"
     ],
     "density": 0.363,
-    "tries": 1
+    "tries": 1,
+    "patrol_lengths": [
+      12,
+      12,
+      12,
+      10,
+      12,
+      12
+    ],
+    "key": [
+      4,
+      7
+    ],
+    "exit": [
+      2,
+      6
+    ]
   },
   {
     "level": 16,
@@ -382,7 +603,23 @@
       "bomb"
     ],
     "density": 0.385,
-    "tries": 1
+    "tries": 1,
+    "patrol_lengths": [
+      12,
+      12,
+      12,
+      12,
+      12,
+      12
+    ],
+    "key": [
+      6,
+      9
+    ],
+    "exit": [
+      1,
+      2
+    ]
   },
   {
     "level": 17,
@@ -409,7 +646,23 @@
       "bomb"
     ],
     "density": 0.378,
-    "tries": 1
+    "tries": 1,
+    "patrol_lengths": [
+      12,
+      12,
+      12,
+      12,
+      12,
+      11
+    ],
+    "key": [
+      4,
+      7
+    ],
+    "exit": [
+      1,
+      9
+    ]
   },
   {
     "level": 18,
@@ -430,13 +683,29 @@
     "vision_half_deg": 45.3,
     "coins": 12,
     "gems": 3,
-    "bushes": 4,
+    "bushes": 5,
     "traps": 1,
     "trap_kinds": [
       "bomb"
     ],
     "density": 0.363,
-    "tries": 1
+    "tries": 1,
+    "patrol_lengths": [
+      12,
+      12,
+      12,
+      12,
+      12,
+      12
+    ],
+    "key": [
+      5,
+      9
+    ],
+    "exit": [
+      5,
+      15
+    ]
   },
   {
     "level": 19,
@@ -463,7 +732,23 @@
       "bomb"
     ],
     "density": 0.378,
-    "tries": 2
+    "tries": 1,
+    "patrol_lengths": [
+      12,
+      12,
+      12,
+      12,
+      12,
+      12
+    ],
+    "key": [
+      4,
+      8
+    ],
+    "exit": [
+      9,
+      5
+    ]
   },
   {
     "level": 20,
@@ -484,13 +769,29 @@
     "vision_half_deg": 45.9,
     "coins": 13,
     "gems": 3,
-    "bushes": 5,
+    "bushes": 4,
     "traps": 1,
     "trap_kinds": [
       "bomb"
     ],
     "density": 0.378,
-    "tries": 1
+    "tries": 1,
+    "patrol_lengths": [
+      12,
+      12,
+      12,
+      12,
+      12,
+      12
+    ],
+    "key": [
+      5,
+      9
+    ],
+    "exit": [
+      1,
+      9
+    ]
   },
   {
     "level": 21,
@@ -512,13 +813,30 @@
     "vision_half_deg": 46.2,
     "coins": 13,
     "gems": 3,
-    "bushes": 5,
+    "bushes": 4,
     "traps": 1,
     "trap_kinds": [
       "bomb"
     ],
     "density": 0.385,
-    "tries": 1
+    "tries": 1,
+    "patrol_lengths": [
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      9
+    ],
+    "key": [
+      4,
+      7
+    ],
+    "exit": [
+      9,
+      1
+    ]
   },
   {
     "level": 22,
@@ -540,13 +858,30 @@
     "vision_half_deg": 46.5,
     "coins": 14,
     "gems": 3,
-    "bushes": 4,
+    "bushes": 5,
     "traps": 1,
     "trap_kinds": [
       "bomb"
     ],
     "density": 0.378,
-    "tries": 1
+    "tries": 1,
+    "patrol_lengths": [
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10
+    ],
+    "key": [
+      6,
+      7
+    ],
+    "exit": [
+      1,
+      15
+    ]
   },
   {
     "level": 23,
@@ -574,7 +909,24 @@
       "bomb"
     ],
     "density": 0.393,
-    "tries": 2
+    "tries": 1,
+    "patrol_lengths": [
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      9
+    ],
+    "key": [
+      3,
+      7
+    ],
+    "exit": [
+      9,
+      1
+    ]
   },
   {
     "level": 24,
@@ -602,7 +954,24 @@
       "bomb"
     ],
     "density": 0.393,
-    "tries": 1
+    "tries": 1,
+    "patrol_lengths": [
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10
+    ],
+    "key": [
+      5,
+      8
+    ],
+    "exit": [
+      2,
+      4
+    ]
   },
   {
     "level": 25,
@@ -624,14 +993,31 @@
     "vision_half_deg": 47.4,
     "coins": 15,
     "gems": 4,
-    "bushes": 4,
+    "bushes": 5,
     "traps": 2,
     "trap_kinds": [
       "bomb",
       "cryo"
     ],
     "density": 0.393,
-    "tries": 1
+    "tries": 1,
+    "patrol_lengths": [
+      10,
+      10,
+      10,
+      10,
+      10,
+      7,
+      10
+    ],
+    "key": [
+      6,
+      7
+    ],
+    "exit": [
+      1,
+      1
+    ]
   },
   {
     "level": 26,
@@ -653,14 +1039,31 @@
     "vision_half_deg": 47.8,
     "coins": 15,
     "gems": 4,
-    "bushes": 5,
+    "bushes": 4,
     "traps": 2,
     "trap_kinds": [
       "bomb",
       "cryo"
     ],
     "density": 0.4,
-    "tries": 1
+    "tries": 1,
+    "patrol_lengths": [
+      10,
+      10,
+      10,
+      10,
+      10,
+      7,
+      10
+    ],
+    "key": [
+      6,
+      7
+    ],
+    "exit": [
+      5,
+      1
+    ]
   },
   {
     "level": 27,
@@ -689,7 +1092,24 @@
       "cryo"
     ],
     "density": 0.4,
-    "tries": 2
+    "tries": 1,
+    "patrol_lengths": [
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10
+    ],
+    "key": [
+      5,
+      10
+    ],
+    "exit": [
+      1,
+      3
+    ]
   },
   {
     "level": 28,
@@ -711,14 +1131,31 @@
     "vision_half_deg": 48.4,
     "coins": 16,
     "gems": 4,
-    "bushes": 4,
+    "bushes": 5,
     "traps": 2,
     "trap_kinds": [
       "bomb",
       "cryo"
     ],
     "density": 0.407,
-    "tries": 1
+    "tries": 1,
+    "patrol_lengths": [
+      10,
+      10,
+      10,
+      9,
+      9,
+      10,
+      10
+    ],
+    "key": [
+      6,
+      8
+    ],
+    "exit": [
+      9,
+      2
+    ]
   },
   {
     "level": 29,
@@ -740,14 +1177,31 @@
     "vision_half_deg": 48.7,
     "coins": 16,
     "gems": 4,
-    "bushes": 4,
+    "bushes": 5,
     "traps": 2,
     "trap_kinds": [
       "bomb",
       "cryo"
     ],
     "density": 0.407,
-    "tries": 2
+    "tries": 1,
+    "patrol_lengths": [
+      10,
+      10,
+      10,
+      10,
+      10,
+      9,
+      7
+    ],
+    "key": [
+      4,
+      7
+    ],
+    "exit": [
+      8,
+      1
+    ]
   },
   {
     "level": 30,
@@ -776,7 +1230,24 @@
       "cryo"
     ],
     "density": 0.407,
-    "tries": 1
+    "tries": 1,
+    "patrol_lengths": [
+      10,
+      10,
+      10,
+      10,
+      10,
+      9,
+      10
+    ],
+    "key": [
+      5,
+      9
+    ],
+    "exit": [
+      1,
+      5
+    ]
   },
   {
     "level": 31,
@@ -806,7 +1277,25 @@
       "cryo"
     ],
     "density": 0.415,
-    "tries": 1
+    "tries": 1,
+    "patrol_lengths": [
+      8,
+      8,
+      8,
+      8,
+      8,
+      6,
+      8,
+      8
+    ],
+    "key": [
+      5,
+      7
+    ],
+    "exit": [
+      2,
+      1
+    ]
   },
   {
     "level": 32,
@@ -836,7 +1325,25 @@
       "cryo"
     ],
     "density": 0.415,
-    "tries": 3
+    "tries": 1,
+    "patrol_lengths": [
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8
+    ],
+    "key": [
+      6,
+      7
+    ],
+    "exit": [
+      5,
+      9
+    ]
   },
   {
     "level": 33,
@@ -859,14 +1366,32 @@
     "vision_half_deg": 49.9,
     "coins": 17,
     "gems": 5,
-    "bushes": 5,
+    "bushes": 4,
     "traps": 2,
     "trap_kinds": [
       "bomb",
       "cryo"
     ],
     "density": 0.422,
-    "tries": 2
+    "tries": 1,
+    "patrol_lengths": [
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8
+    ],
+    "key": [
+      7,
+      8
+    ],
+    "exit": [
+      3,
+      3
+    ]
   },
   {
     "level": 34,
@@ -895,8 +1420,26 @@
       "bomb",
       "cryo"
     ],
-    "density": 0.415,
-    "tries": 3
+    "density": 0.422,
+    "tries": 1,
+    "patrol_lengths": [
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8
+    ],
+    "key": [
+      6,
+      7
+    ],
+    "exit": [
+      1,
+      1
+    ]
   },
   {
     "level": 35,
@@ -926,7 +1469,25 @@
       "cryo"
     ],
     "density": 0.422,
-    "tries": 1
+    "tries": 1,
+    "patrol_lengths": [
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8
+    ],
+    "key": [
+      7,
+      8
+    ],
+    "exit": [
+      2,
+      1
+    ]
   },
   {
     "level": 36,
@@ -949,14 +1510,32 @@
     "vision_half_deg": 50.9,
     "coins": 18,
     "gems": 5,
-    "bushes": 4,
+    "bushes": 5,
     "traps": 2,
     "trap_kinds": [
       "bomb",
       "cryo"
     ],
     "density": 0.43,
-    "tries": 1
+    "tries": 2,
+    "patrol_lengths": [
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8
+    ],
+    "key": [
+      4,
+      6
+    ],
+    "exit": [
+      8,
+      6
+    ]
   },
   {
     "level": 37,
@@ -979,14 +1558,32 @@
     "vision_half_deg": 51.2,
     "coins": 18,
     "gems": 5,
-    "bushes": 5,
+    "bushes": 4,
     "traps": 2,
     "trap_kinds": [
       "bomb",
       "cryo"
     ],
     "density": 0.422,
-    "tries": 1
+    "tries": 1,
+    "patrol_lengths": [
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8
+    ],
+    "key": [
+      4,
+      10
+    ],
+    "exit": [
+      2,
+      4
+    ]
   },
   {
     "level": 38,
@@ -1017,7 +1614,25 @@
       "bomb"
     ],
     "density": 0.437,
-    "tries": 1
+    "tries": 1,
+    "patrol_lengths": [
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8
+    ],
+    "key": [
+      7,
+      8
+    ],
+    "exit": [
+      3,
+      2
+    ]
   },
   {
     "level": 39,
@@ -1040,7 +1655,7 @@
     "vision_half_deg": 51.8,
     "coins": 18,
     "gems": 5,
-    "bushes": 4,
+    "bushes": 5,
     "traps": 3,
     "trap_kinds": [
       "bomb",
@@ -1048,7 +1663,25 @@
       "bomb"
     ],
     "density": 0.437,
-    "tries": 3
+    "tries": 2,
+    "patrol_lengths": [
+      8,
+      8,
+      8,
+      8,
+      6,
+      8,
+      8,
+      8
+    ],
+    "key": [
+      6,
+      7
+    ],
+    "exit": [
+      2,
+      2
+    ]
   },
   {
     "level": 40,
@@ -1079,7 +1712,25 @@
       "bomb"
     ],
     "density": 0.437,
-    "tries": 1
+    "tries": 1,
+    "patrol_lengths": [
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8
+    ],
+    "key": [
+      5,
+      7
+    ],
+    "exit": [
+      8,
+      8
+    ]
   },
   {
     "level": 41,
@@ -1111,7 +1762,26 @@
       "bomb"
     ],
     "density": 0.437,
-    "tries": 1
+    "tries": 1,
+    "patrol_lengths": [
+      8,
+      8,
+      8,
+      7,
+      8,
+      6,
+      6,
+      8,
+      6
+    ],
+    "key": [
+      3,
+      8
+    ],
+    "exit": [
+      8,
+      1
+    ]
   },
   {
     "level": 42,
@@ -1143,7 +1813,26 @@
       "bomb"
     ],
     "density": 0.444,
-    "tries": 1
+    "tries": 1,
+    "patrol_lengths": [
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      7
+    ],
+    "key": [
+      4,
+      8
+    ],
+    "exit": [
+      9,
+      2
+    ]
   },
   {
     "level": 43,
@@ -1167,7 +1856,7 @@
     "vision_half_deg": 53.0,
     "coins": 18,
     "gems": 6,
-    "bushes": 5,
+    "bushes": 4,
     "traps": 3,
     "trap_kinds": [
       "bomb",
@@ -1175,7 +1864,26 @@
       "bomb"
     ],
     "density": 0.452,
-    "tries": 4
+    "tries": 2,
+    "patrol_lengths": [
+      8,
+      8,
+      8,
+      8,
+      7,
+      8,
+      8,
+      7,
+      6
+    ],
+    "key": [
+      2,
+      10
+    ],
+    "exit": [
+      3,
+      12
+    ]
   },
   {
     "level": 44,
@@ -1199,7 +1907,7 @@
     "vision_half_deg": 53.3,
     "coins": 18,
     "gems": 6,
-    "bushes": 5,
+    "bushes": 4,
     "traps": 3,
     "trap_kinds": [
       "bomb",
@@ -1207,7 +1915,26 @@
       "bomb"
     ],
     "density": 0.452,
-    "tries": 5
+    "tries": 1,
+    "patrol_lengths": [
+      8,
+      8,
+      8,
+      8,
+      7,
+      8,
+      6,
+      7,
+      8
+    ],
+    "key": [
+      5,
+      8
+    ],
+    "exit": [
+      9,
+      12
+    ]
   },
   {
     "level": 45,
@@ -1239,7 +1966,26 @@
       "bomb"
     ],
     "density": 0.459,
-    "tries": 10
+    "tries": 1,
+    "patrol_lengths": [
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      7
+    ],
+    "key": [
+      4,
+      10
+    ],
+    "exit": [
+      1,
+      12
+    ]
   },
   {
     "level": 46,
@@ -1263,7 +2009,7 @@
     "vision_half_deg": 54.0,
     "coins": 18,
     "gems": 6,
-    "bushes": 4,
+    "bushes": 5,
     "traps": 3,
     "trap_kinds": [
       "bomb",
@@ -1271,7 +2017,26 @@
       "bomb"
     ],
     "density": 0.459,
-    "tries": 1
+    "tries": 1,
+    "patrol_lengths": [
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      7
+    ],
+    "key": [
+      6,
+      7
+    ],
+    "exit": [
+      1,
+      2
+    ]
   },
   {
     "level": 47,
@@ -1295,7 +2060,7 @@
     "vision_half_deg": 54.3,
     "coins": 18,
     "gems": 6,
-    "bushes": 4,
+    "bushes": 5,
     "traps": 3,
     "trap_kinds": [
       "bomb",
@@ -1303,7 +2068,26 @@
       "bomb"
     ],
     "density": 0.459,
-    "tries": 2
+    "tries": 1,
+    "patrol_lengths": [
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8
+    ],
+    "key": [
+      6,
+      9
+    ],
+    "exit": [
+      2,
+      5
+    ]
   },
   {
     "level": 48,
@@ -1327,7 +2111,7 @@
     "vision_half_deg": 54.6,
     "coins": 18,
     "gems": 6,
-    "bushes": 4,
+    "bushes": 5,
     "traps": 3,
     "trap_kinds": [
       "bomb",
@@ -1335,7 +2119,26 @@
       "bomb"
     ],
     "density": 0.467,
-    "tries": 1
+    "tries": 1,
+    "patrol_lengths": [
+      8,
+      8,
+      8,
+      6,
+      8,
+      8,
+      8,
+      7,
+      6
+    ],
+    "key": [
+      4,
+      8
+    ],
+    "exit": [
+      7,
+      2
+    ]
   },
   {
     "level": 49,
@@ -1359,7 +2162,7 @@
     "vision_half_deg": 54.9,
     "coins": 18,
     "gems": 6,
-    "bushes": 4,
+    "bushes": 5,
     "traps": 3,
     "trap_kinds": [
       "bomb",
@@ -1367,7 +2170,26 @@
       "bomb"
     ],
     "density": 0.467,
-    "tries": 2
+    "tries": 1,
+    "patrol_lengths": [
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8
+    ],
+    "key": [
+      5,
+      8
+    ],
+    "exit": [
+      3,
+      1
+    ]
   },
   {
     "level": 50,
@@ -1391,7 +2213,7 @@
     "vision_half_deg": 55.2,
     "coins": 18,
     "gems": 6,
-    "bushes": 5,
+    "bushes": 3,
     "traps": 3,
     "trap_kinds": [
       "bomb",
@@ -1399,6 +2221,25 @@
       "bomb"
     ],
     "density": 0.474,
-    "tries": 1
+    "tries": 1,
+    "patrol_lengths": [
+      8,
+      8,
+      7,
+      8,
+      8,
+      6,
+      7,
+      7,
+      6
+    ],
+    "key": [
+      5,
+      7
+    ],
+    "exit": [
+      8,
+      1
+    ]
   }
 ]

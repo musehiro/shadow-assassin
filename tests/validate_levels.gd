@@ -78,6 +78,24 @@ func _process(_delta: float) -> bool:
 				if game.targets_left != 9:
 					return _fail("level 50 targets_left=%d (want 9)" % game.targets_left)
 				print("[VALIDATE] level 50 running: 9 guards, %d coins, state PLAYING" % game.coins_total)
+				# Key + exit win condition on the hardest level.
+				if game.key_tile.x < 0 or game.exit_tile.x < 0:
+					return _fail("level 50 has no key/exit tiles")
+				if game.key_collected:
+					return _fail("key must start uncollected")
+				if game._exit_arrow == null or not game._exit_arrow.visible:
+					return _fail("level 50 exit arrow missing/invisible")
+				if game._key_icon == null:
+					return _fail("HUD key icon missing")
+				# Wide patrols: every guard roams a long route (v2: 2-4).
+				for gi in range(game.guards.size()):
+					var plen: int = (game.level["guards"][gi] as Dictionary)["patrol"].size()
+					if plen < 5:
+						return _fail("level 50 guard %d patrol is only %d tiles (want >= 5)" % [gi, plen])
+				var total_route := 0
+				for gi in range(game.guards.size()):
+					total_route += ((game.level["guards"][gi] as Dictionary)["patrol"].size() as int)
+				print("[VALIDATE] key %s + exit %s + arrow OK; patrols total %d tiles over 9 guards" % [str(game.key_tile), str(game.exit_tile), total_route])
 				print("[VALIDATE] PASS")
 				quit(0)
 				return true

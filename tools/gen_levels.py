@@ -18,6 +18,21 @@ Design (from docs/reference/hunter-assassin-research-2026-11-21.md §4-5)
   L7-9 5, L10 6, L11-20 6, L21-30 7, L31-40 8, L41-50 9. Difficulty
   rises by guard count, overlapping cones, faster patrols, new enemy
   types and traps -- NOT by map size (every map is 11x17).
+- Patrols are LONG A*-routed paths (7-16 tiles) that roam all over the
+  map, not short 2-6 tile straight segments: the guard walks the path
+  out and back (ping-pong), so the player has to watch patrols, time
+  moves and sneak up behind guards. Routes may cross each other —
+  guards criss-crossing the same corridors is the point (overlapping
+  cones); the game pushes guards apart if they meet.
+  (L3 keeps its short parallel Double Kill pair by design.)
+- KEY + EXIT win condition: every level has exactly one key 'K' and one
+  exit 'E' in the map. The key sits 1-3 tiles from a patrol route,
+  closest to the patrol centroid, >= 4 tiles from the player start --
+  reaching it means dealing with the guards. The exit is the farthest
+  reachable tile from the player start (BFS distance >= 10, Manhattan
+  >= 8, never on a patrol route), usually at the opposite end of the
+  map. Both are BFS-reachable, and reachable on a path that avoids all
+  trap tiles. Win = collect the key, then reach the exit.
 - Enemy types (guard "type", optional field, default "basic"):
   basic L1-2 only, rifle from L3, shotgun from L5, grenade from L8,
   sniper (long narrow cone) from L20, shielded from L30. Colour is
@@ -41,13 +56,20 @@ Solvability checks (mirrored in scripts/levels.gd validate()):
      a walkable neighbour tile that is outside EVERY guard's vision
      cone (snapshot: guards at spawn, facing along patrol), not on any
      patrol route, and not a trap tile -- the timing window to strike
-     from behind. Guards shoot on sight, so the window must let the
-     player reach the guard's back without crossing a live cone.
-  3. Clean start: the player start tile is outside every cone at t=0
-     AND not on, or adjacent (Chebyshev distance <= 1) to, any patrol
-     route tile -- no instant catch from a guard walking past.
+     from behind. OR the "sneak up behind" window: the tile two steps
+     back along the guard's own patrol, outside his forward cone and
+     every other guard's cone -- the player follows the patrol from
+     behind. Guards shoot on sight, so the window must let the player
+     reach the guard's back without crossing a live cone.
+  3. Clean start: the player start tile is outside every cone at t=0,
+     NOT on any patrol route tile, and >= 3 tiles from every guard
+     spawn -- no instant catch from a guard walking past.
   4. Density: blocked fraction >= target, and no 3x3 all-floor square.
   5. Trap fairness: every goal reachable on a path avoiding traps.
+  6. Key + exit: exactly one key 'K' (1-3 tiles from a patrol route,
+     >= 4 from the player start) and one exit 'E' (far from the player
+     start, never on a patrol route), both reachable, both reachable
+     on a path avoiding traps.
 If a level fails a check, it is regenerated with a new seed (up to
 400 tries, density target relaxing slightly after many failures);
 failure counts are reported in the summary.
@@ -258,6 +280,44 @@ def bfs_seen(grid, start, blocked_extra=frozenset()):
     return seen
 
 
+def bfs_dist_map(grid, start):
+    """BFS distance (in tiles) from start to every reachable tile."""
+    dist = {start: 0}
+    queue = [start]
+    while queue:
+        cx, cy = queue.pop(0)
+        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            nb = (cx + dx, cy + dy)
+            if nb not in dist and walkable(grid, nb):
+                dist[nb] = dist[(cx, cy)] + 1
+                queue.append(nb)
+    return dist
+
+
+def bfs_path(grid, a, b):
+    """Shortest 4-dir path a..b inclusive, or None when unreachable."""
+    prev = {a: None}
+    queue = [a]
+    while queue:
+        cur = queue.pop(0)
+        if cur == b:
+            break
+        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            nb = (cur[0] + dx, cur[1] + dy)
+            if nb not in prev and walkable(grid, nb):
+                prev[nb] = cur
+                queue.append(nb)
+    if b not in prev:
+        return None
+    path = []
+    cur = b
+    while cur is not None:
+        path.append(cur)
+        cur = prev[cur]
+    path.reverse()
+    return path
+
+
 def patrol_facing(patrol, k) -> float:
     """Facing of a guard standing at waypoint k, about to walk on."""
     n = len(patrol)
@@ -321,9 +381,30 @@ def check_level(grid, player, guards, traps, target) -> list:
         for x in range(COLS):
             if grid[y][x] in "CJ":
                 goals.append((x, y))
+    keys = [(x, y) for y in range(ROWS) for x in range(COLS) if grid[y][x] == "K"]
+    exits = [(x, y) for y in range(ROWS) for x in range(COLS) if grid[y][x] == "E"]
+    if len(keys) != 1:
+        problems.append(f"want exactly 1 key, found {len(keys)}")
+    if len(exits) != 1:
+        problems.append(f"want exactly 1 exit, found {len(exits)}")
+    goals.extend(keys)
+    goals.extend(exits)
     for g in guards:
         goals.append(g["pos"])
         goals.extend(route_tiles(g["patrol"]))
+    # Key + exit placement rules (see module docstring):
+    # key 1-3 tiles from a patrol route; exit far from the player start.
+    if len(keys) == 1:
+        dmin = min((manhattan(keys[0], rt) for rt in all_route), default=99)
+        if not 1 <= dmin <= 3:
+            problems.append(f"key {dmin} tiles from nearest patrol route (want 1..3)")
+        if manhattan(keys[0], player) < 4:
+            problems.append("key too close to player start")
+    if len(exits) == 1:
+        if manhattan(exits[0], player) < 7:
+            problems.append("exit too close to player start")
+        if exits[0] in all_route:
+            problems.append("exit on a patrol route")
     # 1. BFS reachability
     seen = bfs_seen(grid, player)
     for m in goals:
@@ -334,15 +415,17 @@ def check_level(grid, player, guards, traps, target) -> list:
     for g in guards:
         snap.append((g["pos"], patrol_facing(g["patrol"], 0),
                      g["vision"], math.radians(g["half"])))
-    # 3. clean start: outside every cone at t=0 ...
+    # 3. clean start: outside every cone at t=0, not ON a patrol route,
+    # and >= 3 tiles from every guard spawn.
     for pos, facing, vr, half in snap:
         if visible(grid, pos, facing, vr, half, player):
             problems.append("player start inside a vision cone at t=0")
             break
-    # ... and not on/adjacent to any patrol route
-    for rt in all_route:
-        if chebyshev(player, rt) <= 1:
-            problems.append(f"player start on/adjacent to patrol route at {rt}")
+    if player in all_route:
+        problems.append(f"player start on patrol route at {player}")
+    for g in guards:
+        if manhattan(player, g["pos"]) < 3:
+            problems.append(f"player start {manhattan(player, g['pos'])} tiles from a guard spawn")
             break
     # 4. density: blocked fraction + no 3x3 open floor
     if blocked_fraction(grid) < target - 0.01:
@@ -364,11 +447,32 @@ def check_level(grid, player, guards, traps, target) -> list:
             if m not in seen_safe:
                 problems.append(f"goal {m} only reachable through a trap")
                 break
-    # 2. approach window per guard
+    # 2. approach window per guard: either a walkable neighbour of a
+    # patrol waypoint that is off every route, off traps and outside
+    # EVERY guard's cone — or the "sneak up behind" window: the tile
+    # two steps back along the guard's own patrol, which the guard has
+    # just walked away from (outside his forward cone, and outside
+    # every other guard's cone at the snapshot). That is how the kill
+    # actually happens in play: follow the patrol from behind.
     for gi, g in enumerate(guards):
         has_window = False
         for k, w in enumerate(g["patrol"]):
             facing = patrol_facing(g["patrol"], k)
+            if k >= 2:
+                back = g["patrol"][k - 2]
+                if back not in trap_pos and not visible(
+                        grid, w, facing, g["vision"],
+                        math.radians(g["half"]), back):
+                    seen_by_other = False
+                    for oj, (opos, ofacing, ovr, ohalf) in enumerate(snap):
+                        if oj == gi:
+                            continue
+                        if visible(grid, opos, ofacing, ovr, ohalf, back):
+                            seen_by_other = True
+                            break
+                    if not seen_by_other:
+                        has_window = True
+                        break
             for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
                 nb = (w[0] + dx, w[1] + dy)
                 if not walkable(grid, nb):
@@ -675,48 +779,72 @@ def gen_level(n: int, seed: int, target_override=None):
         route_set.update(dk_route)
         start_gi = 2
     bands = [(1, 5), (6, 10), (11, 15)]
-    for gi in range(start_gi, guard_count(n)):
+    # Patrol length scales with guard count so the map is never paved
+    # over: few guards roam far (up to 16 tiles), many guards roam
+    # shorter loops (down to 5) — still 2-4x the old 2-6 tile segments,
+    # and together they cover the whole map.
+    gc = guard_count(n)
+    max_patrol = 16 if gc <= 4 else 12 if gc <= 6 else 10 if gc <= 7 else 8
+    min_patrol = 7 if gc <= 6 else 5
+    for gi in range(start_gi, gc):
         gtype = types[gi]
         gvision = round(vision + 1.6, 2) if gtype == "sniper" else vision
         ghalf = max(30.0, half - 10.0) if gtype == "sniper" else half
         band = bands[gi % len(bands)]
         got = False
         for _ in range(400):
-            horizontal = rng.random() < 0.6
-            if n >= 38:
-                length = rng.randint(2, 4)
-            elif n >= 21:
-                length = rng.randint(3, 5)
+            # Long patrol: pick a start tile (prefer this guard's band so
+            # guards spread over the whole map), then a far end tile and
+            # walk the BFS shortest path between them. The guard
+            # ping-pongs along the path, so one patrol covers a long
+            # swath of the map instead of one small corridor.
+            if rng.random() < 0.7:
+                sx, sy = rng.randint(1, 9), rng.randint(band[0], band[1])
             else:
-                length = rng.randint(3, 6)
-            if not horizontal:
-                length = min(length, band[1] - band[0] + 1)
-            if horizontal:
-                y = rng.randint(band[0], band[1])
-                x0 = rng.randint(1, 10 - length)
-                tiles = [(x0 + i, y) for i in range(length)]
-            else:
-                x = rng.randint(1, 9)
-                y0 = rng.randint(band[0], band[1] - length + 1)
-                tiles = [(x, y0 + i) for i in range(length)]
-            if not all(walkable(grid, tt) for tt in tiles):
+                sx, sy = rng.randint(1, 9), rng.randint(1, 15)
+            s = (sx, sy)
+            if not walkable(grid, s) or s in route_set:
                 continue
-            # keep patrol routes 2 tiles apart from each other
-            if any(manhattan(tt, pt) < 2 for tt in tiles for pt in route_set):
+            dist = bfs_dist_map(grid, s)
+            far = [t for t, d in dist.items()
+                   if min_patrol <= d <= max_patrol and t not in route_set]
+            if not far:
                 continue
-            patrol = tiles if rng.random() < 0.7 else [tiles[0], tiles[-1]]
+            # Prefer the farthest ends (longest patrols) but vary it.
+            # Routes may cross each other freely — guards criss-crossing
+            # the same corridors is the point (overlapping cones, timed
+            # moves); the game pushes guards apart if they meet, and the
+            # approach-window check below still guarantees every guard
+            # can be struck from behind.
+            far.sort(key=lambda t: -dist[t])
+            rng.shuffle(far[:20])
+            path = None
+            for end in far[:20]:
+                cand = bfs_path(grid, s, end)
+                if cand is None or not min_patrol <= len(cand) <= max_patrol:
+                    continue
+                path = cand
+                break
+            if path is None:
+                continue
             guards.append(_guard_dict(
-                tiles[0], patrol,
+                path[0], path,
                 speed + rng.choice([0.0, 0.05, -0.05]),
                 gtype, gvision, ghalf))
-            route_set.update(tiles)
+            route_set.update(path)
             got = True
             break
         if not got:
             globals()["FAIL_REASON"] = f"guard-placement gi={gi}"
             return None
-    # player start: prefer the bottom rows, never on/adjacent to a route,
-    # never visible at t=0
+    # player start: prefer the bottom rows. Clean-start rule (mirrored
+    # in check_level and ShadowLevels.validate): not ON a patrol route,
+    # >= 3 tiles from every guard spawn (no guard walks past in the
+    # opening seconds), and outside every vision cone at t=0. (The old
+    # "not adjacent to any route tile" rule is unworkable now that long
+    # patrols cover most of the floor — and unnecessary: a guard takes
+    # seconds to walk its route to the start, and the player moves at
+    # once.)
     player = None
     snap = [(g["pos"], patrol_facing(g["patrol"], 0), g["vision"],
              math.radians(g["half"])) for g in guards]
@@ -727,7 +855,9 @@ def gen_level(n: int, seed: int, target_override=None):
             px, py = rng.randint(1, 9), rng.randint(1, 15)
         if not walkable(grid, (px, py)):
             continue
-        if any(chebyshev((px, py), rt) <= 1 for rt in route_set):
+        if (px, py) in route_set:
+            continue
+        if any(manhattan((px, py), g["pos"]) < 3 for g in guards):
             continue
         if any(visible(grid, pos, facing, vr, hf, (px, py))
                for pos, facing, vr, hf in snap):
@@ -737,6 +867,92 @@ def gen_level(n: int, seed: int, target_override=None):
     if player is None:
         globals()["FAIL_REASON"] = "player-start"
         return None
+    # KEY + EXIT (win condition): placed before bushes/coins/gems claim
+    # tiles, so nothing overwrites them.
+    # Key: 1-3 tiles from a patrol route, closest to the patrol centroid,
+    # >= 4 tiles from the player start — reaching it means dealing with
+    # the guards.
+    route_list = sorted(route_set)
+    rcx = sum(t[0] for t in route_list) / len(route_list)
+    rcy = sum(t[1] for t in route_list) / len(route_list)
+    key_cands = []
+    for y in range(1, 16):
+        for x in range(1, 10):
+            if grid[y][x] != ".":
+                continue
+            if manhattan((x, y), player) < 4:
+                continue
+            dmin = min(manhattan((x, y), rt) for rt in route_list)
+            if 1 <= dmin <= 3:
+                key_cands.append((math.hypot(x - rcx, y - rcy), x, y))
+    if not key_cands:
+        globals()["FAIL_REASON"] = "key"
+        return None
+    key_cands.sort()
+    key = (key_cands[0][1], key_cands[0][2])
+    grid[key[1]][key[0]] = "K"
+    # Exit: the farthest reachable tile from the player start (BFS),
+    # preferring the top of the map — the far/opposite side of the level,
+    # never on a patrol route.
+    dist_map = bfs_dist_map(grid, player)
+    exit_cands = []
+    for (x, y), d in dist_map.items():
+        if grid[y][x] != ".":
+            continue
+        if (x, y) in route_set:
+            continue
+        if manhattan((x, y), player) >= 8 and d >= 10:
+            exit_cands.append((-d, y, x, y))
+    if not exit_cands:
+        for (x, y), d in dist_map.items():
+            if grid[y][x] != "." or (x, y) in route_set:
+                continue
+            if manhattan((x, y), player) >= 6 and d >= 8:
+                exit_cands.append((-d, y, x, y))
+    if not exit_cands:
+        globals()["FAIL_REASON"] = "exit"
+        return None
+    exit_cands.sort()
+    exit_tile = (exit_cands[0][2], exit_cands[0][3])
+    grid[exit_tile[1]][exit_tile[0]] = "E"
+    # traps from level 15: placed BEFORE bushes/coins/gems claim tiles,
+    # so pickups cannot eat the few off-route floor tiles traps need.
+    # Sparse, never on a route, never next to the player start, never
+    # next to another trap. Fairness: every route tile, the key and the
+    # exit stay reachable on a path that avoids all trap tiles.
+    # (Pickups are placed afterwards, only on tiles reachable from the
+    # player without stepping on a trap — see safe_tiles below.)
+    traps = []
+    ntrap = trap_count(n)
+    trap_pos = set()
+    for ti in range(ntrap):
+        kind = "bomb" if ti % 2 == 0 else "cryo"
+        got = False
+        for _ in range(300):
+            x, y = rng.randint(1, 9), rng.randint(1, 15)
+            if grid[y][x] != ".":
+                continue
+            if (x, y) in route_set:
+                continue
+            if chebyshev((x, y), player) <= 1:
+                continue
+            if any(manhattan((x, y), tr["pos"]) < 3 for tr in traps):
+                continue
+            blocked = trap_pos | {(x, y)}
+            seen_safe = bfs_seen(grid, player, blocked_extra=blocked)
+            trap_goals = sorted(route_set) + [key, exit_tile]
+            if any(g not in seen_safe for g in trap_goals):
+                continue
+            traps.append({"pos": (x, y), "kind": kind})
+            trap_pos.add((x, y))
+            got = True
+            break
+        if not got:
+            globals()["FAIL_REASON"] = "traps"
+            return None
+    # From here on, bushes/pickups only go on tiles reachable from the
+    # player without stepping on a trap tile.
+    safe_tiles = bfs_seen(grid, player, blocked_extra=trap_pos)
     # bushes (walkable 'B' hiding spots) before coins/gems claim tiles
     for _ in range(bush_count(n, rng)):
         for _ in range(50):
@@ -745,9 +961,14 @@ def gen_level(n: int, seed: int, target_override=None):
                 continue
             if (x, y) in route_set or manhattan((x, y), player) < 2:
                 continue
+            if (x, y) not in safe_tiles:
+                continue
             grid[y][x] = "B"
             break
-    # coins on random walkable tiles, away from patrols and start
+    # coins on random walkable tiles, away from the start. Coins MAY sit
+    # on a patrol route — grabbing one then means stepping into a guard's
+    # path, which is the risk/reward of the stealth loop (long patrols
+    # cover most of the floor, so excluding routes would leave no room).
     ncoins = coin_count(n)
     placed = 0
     tries = 0
@@ -756,7 +977,9 @@ def gen_level(n: int, seed: int, target_override=None):
         x, y = rng.randint(1, 9), rng.randint(1, 15)
         if grid[y][x] != ".":
             continue
-        if (x, y) in route_set or manhattan((x, y), player) < 2:
+        if manhattan((x, y), player) < 2:
+            continue
+        if (x, y) not in safe_tiles:
             continue
         grid[y][x] = "C"
         placed += 1
@@ -769,7 +992,8 @@ def gen_level(n: int, seed: int, target_override=None):
              if grid[y][x] == "."
              and 1 <= min((manhattan((x, y), rt) for rt in route_set),
                           default=99) <= 2
-             and manhattan((x, y), player) >= 2]
+             and manhattan((x, y), player) >= 2
+             and (x, y) in safe_tiles]
     rng.shuffle(risky)
     placed = 0
     for x, y in risky:
@@ -783,46 +1007,15 @@ def gen_level(n: int, seed: int, target_override=None):
         x, y = rng.randint(1, 9), rng.randint(1, 15)
         if grid[y][x] != ".":
             continue
-        if (x, y) in route_set or manhattan((x, y), player) < 2:
+        if manhattan((x, y), player) < 2:
+            continue
+        if (x, y) not in safe_tiles:
             continue
         grid[y][x] = "J"
         placed += 1
     if placed < ngems:
         globals()["FAIL_REASON"] = "gems"
         return None
-    # traps from level 15: sparse, never on a route, never next to the
-    # player start, never next to another trap or a pickup
-    traps = []
-    ntrap = trap_count(n)
-    pickups = [(x, y) for y in range(ROWS) for x in range(COLS)
-               if grid[y][x] in "CJ"]
-    for ti in range(ntrap):
-        kind = "bomb" if ti % 2 == 0 else "cryo"
-        got = False
-        for _ in range(300):
-            x, y = rng.randint(1, 9), rng.randint(1, 15)
-            if grid[y][x] != ".":
-                continue
-            if (x, y) in route_set:
-                continue
-            if chebyshev((x, y), player) <= 1:
-                continue
-            if any(manhattan((x, y), p) < 2 for p in pickups):
-                continue
-            if any(manhattan((x, y), tr["pos"]) < 3 for tr in traps):
-                continue
-            # fairness: blocking this tile must not cut off any goal
-            blocked = {t["pos"] for t in traps} | {(x, y)}
-            seen_safe = bfs_seen(grid, player, blocked_extra=blocked)
-            trap_goals = pickups + sorted(route_set)
-            if any(g not in seen_safe for g in trap_goals):
-                continue
-            traps.append({"pos": (x, y), "kind": kind})
-            got = True
-            break
-        if not got:
-            globals()["FAIL_REASON"] = "traps"
-            return None
     grid[player[1]][player[0]] = "P"
     return grid, player, guards, traps
 
@@ -847,6 +1040,8 @@ def gd_level_lines(lv) -> list:
             f'"vision": {g["vision"]}, "half": {g["half"]}}},'
         )
     lines.append("\t\t\t],")
+    lines.append(f'\t\t\t"key": Vector2i({lv["key"][0]}, {lv["key"][1]}),')
+    lines.append(f'\t\t\t"exit": Vector2i({lv["exit"][0]}, {lv["exit"][1]}),')
     if lv["traps"]:
         traps = ", ".join(
             f'{{"pos": Vector2i({t["pos"][0]}, {t["pos"][1]}), '
@@ -913,6 +1108,8 @@ def main():
         grid, player, guards, traps = result
         name, hint = level_name_hint(n)
         rows = ["".join(row) for row in grid]
+        key_t = next((x, y) for y in range(ROWS) for x in range(COLS) if rows[y][x] == "K")
+        exit_t = next((x, y) for y in range(ROWS) for x in range(COLS) if rows[y][x] == "E")
         levels.append({
             "name": name,
             "hint": hint,
@@ -920,6 +1117,8 @@ def main():
             "map": rows,
             "guards": guards,
             "traps": traps,
+            "key": key_t,
+            "exit": exit_t,
         })
         summary.append({
             "level": n,
@@ -938,18 +1137,23 @@ def main():
             "trap_kinds": [t["kind"] for t in traps],
             "density": round(blocked_fraction(grid), 3),
             "tries": tries,
+            "patrol_lengths": [len(g["patrol"]) for g in guards],
+            "key": list(key_t),
+            "exit": list(exit_t),
         })
         print(f"LEVEL {n:2d} {name:18s} {ARCH_NAMES[(n-1)%5]:10s} "
               f"{theme(n):9s} guards={len(guards)} "
               f"types={','.join(sorted(set(summary[-1]['types'])))} "
               f"coins={summary[-1]['coins']} gems={summary[-1]['gems']} "
               f"bushes={summary[-1]['bushes']} traps={len(traps)} "
-              f"density={summary[-1]['density']} tries={tries}")
+              f"density={summary[-1]['density']} tries={tries} "
+              f"patrols={summary[-1]['patrol_lengths']} key={key_t} exit={exit_t}")
     # levels 11-50 -> scripts/levels_gen.gd
     out_path = root / "scripts" / "levels_gen.gd"
     out_path.write_text(to_gdscript(levels[10:]))
-    # levels 1-10 -> fragment to paste into scripts/levels.gd
-    frag_path = root / "tools" / "levels_1_10_fragment.gd"
+    # levels 1-10 -> fragment to paste into scripts/levels.gd (a .txt so
+    # the editor never tries to parse the fragment as a script)
+    frag_path = root / "tools" / "levels_1_10_fragment.gd.txt"
     frag_lines = []
     for lv in levels[:10]:
         frag_lines.extend(gd_level_lines(lv))

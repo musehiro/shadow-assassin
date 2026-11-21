@@ -4,7 +4,12 @@ class_name ShadowLevels
 ## corridors 1-2 tiles wide, no 3x3 open floor. Legend:
 ##   '#' wall   'X' crate (blocks movement + sight)   '.' floor
 ##   'P' player start   'C' coin   'J' gem (worth 5)   'B' bush/plant (walkable hiding spot)
+##   'K' key (collect it, then reach the exit)   'E' exit (bright green square)
 ## Guards are defined separately with spawn tile, patrol waypoints, speed, colour.
+## Patrols are LONG A*-routed paths (see tools/gen_levels.py): each guard
+## roams a long swath of the map out and back, routes may cross each other.
+## Win condition: collect the key, then reach the exit — killing guards
+## is how you get to the key safely, but it is not the win trigger.
 ## Optional fields (safe defaults -- old levels still load):
 ##   level "theme": "warehouse" (L1-12) | "cyber" (L13-25) | "lab" (L26-37)
 ##     | "prison" (L38-50). Guard "type": "basic" (L1-2) | "rifle" (from L3)
@@ -22,27 +27,29 @@ static func get_levels() -> Array:
 			"theme": "warehouse",
 			"map": [
 				"###########",
-				"#X##.C..C.#",
+				"#X##E.....#",
 				"#X...X..XX#",
-				"#.B..C..X.#",
-				"#..X....B.#",
-				"#J...X.X..#",
-				"#.X.XC.#..#",
-				"#...X..#B.#",
-				"#XX...XX..#",
-				"#.###.....#",
-				"#..##CXCXX#",
-				"#..##XX...#",
-				"#X..###..X#",
-				"#....##..P#",
-				"#..X......#",
-				"#..CX.XX.X#",
+				"#...C...X.#",
+				"#..X.B....#",
+				"#...BX.X..#",
+				"#.X.X..#C.#",
+				"#...X..#C.#",
+				"#XX...XXB.#",
+				"#C###...C.#",
+				"#C.##.X.XX#",
+				"#C.##XX...#",
+				"#X.K###..X#",
+				"#....##...#",
+				"#..X....P.#",
+				"#J..X.XX.X#",
 				"###########",
 			],
 			"guards": [
-				{"pos": Vector2i(4, 4), "patrol": [Vector2i(4, 4), Vector2i(5, 4), Vector2i(6, 4), Vector2i(7, 4)], "speed": 1.1, "color": "green", "type": "basic", "vision": 3.0, "half": 40.0},
-				{"pos": Vector2i(1, 7), "patrol": [Vector2i(1, 7), Vector2i(3, 7)], "speed": 1.1, "color": "green", "type": "basic", "vision": 3.0, "half": 40.0},
+				{"pos": Vector2i(2, 5), "patrol": [Vector2i(2, 5), Vector2i(3, 5), Vector2i(3, 6), Vector2i(3, 7), Vector2i(3, 8), Vector2i(4, 8), Vector2i(5, 8), Vector2i(5, 9), Vector2i(6, 9), Vector2i(7, 9), Vector2i(7, 10), Vector2i(7, 11), Vector2i(8, 11), Vector2i(8, 12), Vector2i(8, 13), Vector2i(9, 13)], "speed": 1.05, "color": "green", "type": "basic", "vision": 3.0, "half": 40.0},
+				{"pos": Vector2i(5, 10), "patrol": [Vector2i(5, 10), Vector2i(5, 9), Vector2i(6, 9), Vector2i(7, 9), Vector2i(7, 10), Vector2i(7, 11), Vector2i(7, 12), Vector2i(7, 13), Vector2i(7, 14), Vector2i(6, 14), Vector2i(5, 14), Vector2i(4, 14), Vector2i(4, 13), Vector2i(3, 13), Vector2i(2, 13), Vector2i(1, 13)], "speed": 1.1, "color": "green", "type": "basic", "vision": 3.0, "half": 40.0},
 			],
+			"key": Vector2i(3, 12),
+			"exit": Vector2i(4, 1),
 		},
 		{
 			"name": "Two Watchers",
@@ -50,28 +57,30 @@ static func get_levels() -> Array:
 			"theme": "warehouse",
 			"map": [
 				"###########",
-				"#......BCX#",
-				"#X.#.X.#..#",
-				"#.X#.C.####",
+				"#........X#",
+				"#X.#.X.#BE#",
+				"#CX#...####",
 				"#..#.XX#..#",
-				"#..#...#X.#",
-				"#.X#.XB#..#",
-				"#.X#.B.#..#",
+				"#..#..B#X.#",
+				"#.X#CXJ#C.#",
+				"#CX#...#..#",
 				"#...#.###.#",
-				"#C.#.CX#..#",
+				"#..#K.X#..#",
 				"#X.#...#..#",
-				"#....X....#",
-				"#.X....####",
-				"#..C.PX#JX#",
+				"#..C.X....#",
+				"#.X..C.####",
+				"#.....X#.X#",
 				"#.X#.XX...#",
-				"#C...C....#",
+				"#C.......P#",
 				"###########",
 			],
 			"guards": [
-				{"pos": Vector2i(4, 3), "patrol": [Vector2i(4, 3), Vector2i(4, 5)], "speed": 1.22, "color": "green", "type": "basic", "vision": 3.03, "half": 40.3},
-				{"pos": Vector2i(9, 6), "patrol": [Vector2i(9, 6), Vector2i(9, 10)], "speed": 1.22, "color": "green", "type": "basic", "vision": 3.03, "half": 40.3},
-				{"pos": Vector2i(6, 11), "patrol": [Vector2i(6, 11), Vector2i(7, 11), Vector2i(8, 11)], "speed": 1.17, "color": "green", "type": "basic", "vision": 3.03, "half": 40.3},
+				{"pos": Vector2i(6, 12), "patrol": [Vector2i(6, 12), Vector2i(6, 11), Vector2i(6, 10), Vector2i(5, 10), Vector2i(5, 9), Vector2i(5, 8), Vector2i(5, 7), Vector2i(4, 7), Vector2i(4, 6), Vector2i(4, 5), Vector2i(4, 4), Vector2i(4, 3), Vector2i(5, 3), Vector2i(6, 3), Vector2i(6, 2), Vector2i(6, 1)], "speed": 1.22, "color": "green", "type": "basic", "vision": 3.03, "half": 40.3},
+				{"pos": Vector2i(8, 10), "patrol": [Vector2i(8, 10), Vector2i(8, 11), Vector2i(7, 11), Vector2i(6, 11), Vector2i(6, 12), Vector2i(5, 12), Vector2i(4, 12), Vector2i(3, 12), Vector2i(3, 11), Vector2i(2, 11), Vector2i(2, 10), Vector2i(2, 9), Vector2i(1, 9), Vector2i(1, 8), Vector2i(1, 7), Vector2i(1, 6)], "speed": 1.17, "color": "green", "type": "basic", "vision": 3.03, "half": 40.3},
+				{"pos": Vector2i(6, 15), "patrol": [Vector2i(6, 15), Vector2i(5, 15), Vector2i(4, 15), Vector2i(4, 14), Vector2i(4, 13), Vector2i(5, 13), Vector2i(5, 12), Vector2i(6, 12), Vector2i(6, 11), Vector2i(7, 11), Vector2i(8, 11), Vector2i(9, 11), Vector2i(9, 10), Vector2i(9, 9), Vector2i(9, 8), Vector2i(9, 7)], "speed": 1.22, "color": "green", "type": "basic", "vision": 3.03, "half": 40.3},
 			],
+			"key": Vector2i(4, 9),
+			"exit": Vector2i(9, 2),
 		},
 		{
 			"name": "Garden Patrol",
@@ -79,28 +88,30 @@ static func get_levels() -> Array:
 			"theme": "warehouse",
 			"map": [
 				"###########",
-				"#.BBCC....#",
-				"#.C....X..#",
+				"#.B..C....#",
+				"#......X..#",
 				"###.#.#####",
-				"#.CXX.....#",
-				"#......C.X#",
+				"#..XX.....#",
+				"#C.......X#",
 				"##.#####.X#",
-				"#.....##.X#",
+				"#..C..##.X#",
 				"#...XX....#",
 				"##..#####.#",
-				"#..XX.....#",
-				"#.XXC.....#",
-				"#C#########",
-				"#.......J.#",
-				"#.X..#X.X.#",
-				"#...B#X.P.#",
+				"#..XXE....#",
+				"#.XXKJ....#",
+				"#.#########",
+				"#.C...C.C.#",
+				"#.XC.#X.XP#",
+				"#...B#X...#",
 				"###########",
 			],
 			"guards": [
 				{"pos": Vector2i(6, 10), "patrol": [Vector2i(6, 10), Vector2i(7, 10), Vector2i(8, 10), Vector2i(9, 10)], "speed": 1.23, "color": "orange", "type": "rifle", "vision": 3.07, "half": 40.6},
 				{"pos": Vector2i(6, 11), "patrol": [Vector2i(6, 11), Vector2i(7, 11), Vector2i(8, 11), Vector2i(9, 11)], "speed": 1.23, "color": "orange", "type": "rifle", "vision": 3.07, "half": 40.6},
-				{"pos": Vector2i(2, 13), "patrol": [Vector2i(2, 13), Vector2i(3, 13), Vector2i(4, 13), Vector2i(5, 13), Vector2i(6, 13), Vector2i(7, 13)], "speed": 1.28, "color": "orange", "type": "rifle", "vision": 3.07, "half": 40.6},
+				{"pos": Vector2i(6, 13), "patrol": [Vector2i(6, 13), Vector2i(5, 13), Vector2i(4, 13), Vector2i(3, 13), Vector2i(2, 13), Vector2i(1, 13), Vector2i(1, 12), Vector2i(1, 11), Vector2i(1, 10), Vector2i(2, 10), Vector2i(2, 9), Vector2i(3, 9), Vector2i(3, 8), Vector2i(3, 7), Vector2i(4, 7), Vector2i(5, 7)], "speed": 1.28, "color": "orange", "type": "rifle", "vision": 3.07, "half": 40.6},
 			],
+			"key": Vector2i(4, 11),
+			"exit": Vector2i(5, 10),
 		},
 		{
 			"name": "The Courtyard",
@@ -108,29 +119,31 @@ static func get_levels() -> Array:
 			"theme": "warehouse",
 			"map": [
 				"###########",
-				"####X.J.X.#",
-				"#X........#",
-				"#..#..X##.#",
+				"####X.CEX.#",
+				"#X......C.#",
+				"#..#.CX##.#",
 				"#.C##..##.#",
-				"#X.....CX.#",
-				"#X..X#..X.#",
-				"#..X.#.CB.#",
-				"#..XC#BX..#",
-				"#CX..#....#",
+				"#X......X.#",
+				"#X.CX#..XC#",
+				"#..XB#.C..#",
+				"#.CXK#.X..#",
+				"#.X..#.B..#",
 				"#.........#",
 				"#......XXX#",
-				"#X.##C....#",
+				"#X.##....J#",
 				"#X.##XX####",
-				"#.....CC.##",
-				"#.X...X.P##",
+				"#........##",
+				"#PX...X..##",
 				"###########",
 			],
 			"guards": [
-				{"pos": Vector2i(2, 2), "patrol": [Vector2i(2, 2), Vector2i(3, 2), Vector2i(4, 2), Vector2i(5, 2), Vector2i(6, 2)], "speed": 1.35, "color": "orange", "type": "rifle", "vision": 3.1, "half": 40.9},
-				{"pos": Vector2i(7, 9), "patrol": [Vector2i(7, 9), Vector2i(9, 9)], "speed": 1.3, "color": "orange", "type": "rifle", "vision": 3.1, "half": 40.9},
-				{"pos": Vector2i(1, 11), "patrol": [Vector2i(1, 11), Vector2i(5, 11)], "speed": 1.25, "color": "orange", "type": "rifle", "vision": 3.1, "half": 40.9},
-				{"pos": Vector2i(2, 5), "patrol": [Vector2i(2, 5), Vector2i(5, 5)], "speed": 1.25, "color": "orange", "type": "rifle", "vision": 3.1, "half": 40.9},
+				{"pos": Vector2i(5, 2), "patrol": [Vector2i(5, 2), Vector2i(4, 2), Vector2i(3, 2), Vector2i(2, 2), Vector2i(2, 3), Vector2i(2, 4), Vector2i(2, 5), Vector2i(2, 6), Vector2i(2, 7), Vector2i(1, 7), Vector2i(1, 8), Vector2i(1, 9), Vector2i(1, 10), Vector2i(2, 10), Vector2i(2, 11), Vector2i(2, 12)], "speed": 1.35, "color": "orange", "type": "rifle", "vision": 3.1, "half": 40.9},
+				{"pos": Vector2i(6, 7), "patrol": [Vector2i(6, 7), Vector2i(6, 8), Vector2i(6, 9), Vector2i(6, 10), Vector2i(5, 10), Vector2i(4, 10), Vector2i(3, 10), Vector2i(2, 10), Vector2i(2, 11), Vector2i(2, 12), Vector2i(2, 13), Vector2i(2, 14), Vector2i(3, 14), Vector2i(4, 14), Vector2i(5, 14), Vector2i(6, 14)], "speed": 1.3, "color": "orange", "type": "rifle", "vision": 3.1, "half": 40.9},
+				{"pos": Vector2i(7, 14), "patrol": [Vector2i(7, 14), Vector2i(6, 14), Vector2i(5, 14), Vector2i(4, 14), Vector2i(3, 14), Vector2i(2, 14), Vector2i(2, 13), Vector2i(2, 12), Vector2i(2, 11), Vector2i(3, 11), Vector2i(4, 11), Vector2i(5, 11), Vector2i(6, 11), Vector2i(6, 12), Vector2i(7, 12), Vector2i(8, 12)], "speed": 1.35, "color": "orange", "type": "rifle", "vision": 3.1, "half": 40.9},
+				{"pos": Vector2i(9, 1), "patrol": [Vector2i(9, 1), Vector2i(9, 2), Vector2i(9, 3), Vector2i(9, 4), Vector2i(9, 5), Vector2i(9, 6), Vector2i(9, 7), Vector2i(8, 7), Vector2i(7, 7), Vector2i(6, 7), Vector2i(6, 8), Vector2i(6, 9), Vector2i(6, 10), Vector2i(5, 10), Vector2i(4, 10), Vector2i(4, 9)], "speed": 1.25, "color": "orange", "type": "rifle", "vision": 3.1, "half": 40.9},
 			],
+			"key": Vector2i(4, 8),
+			"exit": Vector2i(7, 1),
 		},
 		{
 			"name": "Crossroads",
@@ -138,29 +151,31 @@ static func get_levels() -> Array:
 			"theme": "warehouse",
 			"map": [
 				"###########",
-				"#X.XX##.C.#",
-				"#...CXXXC.#",
-				"#BX.X..X..#",
-				"#B..J.X...#",
-				"#.C#X#X#..#",
-				"#..#.C.#..#",
-				"#.....XBC.#",
+				"#XEXX##...#",
+				"#....XXX..#",
+				"#.X.XB.X..#",
+				"#B....X...#",
+				"#..#X#X#..#",
 				"#..#...#..#",
-				"#.X..X..XC#",
-				"#.X#...C..#",
+				"#B.C..XCCC#",
+				"#..#.C.#C.#",
+				"#.X.KX..X.#",
+				"#.X#......#",
 				"#..#.#.#..#",
 				"#.##XX###.#",
 				"#X##......#",
-				"#XX.....X.#",
-				"#...X.X.P.#",
+				"#XX..P.CX.#",
+				"#...X.XJ.C#",
 				"###########",
 			],
 			"guards": [
-				{"pos": Vector2i(3, 2), "patrol": [Vector2i(3, 2), Vector2i(3, 3), Vector2i(3, 4)], "speed": 1.31, "color": "orange", "type": "rifle", "vision": 3.13, "half": 41.2},
-				{"pos": Vector2i(1, 6), "patrol": [Vector2i(1, 6), Vector2i(1, 7), Vector2i(1, 8), Vector2i(1, 9), Vector2i(1, 10)], "speed": 1.31, "color": "pink", "type": "shotgun", "vision": 3.13, "half": 41.2},
-				{"pos": Vector2i(4, 13), "patrol": [Vector2i(4, 13), Vector2i(9, 13)], "speed": 1.36, "color": "orange", "type": "rifle", "vision": 3.13, "half": 41.2},
-				{"pos": Vector2i(9, 1), "patrol": [Vector2i(9, 1), Vector2i(9, 4)], "speed": 1.41, "color": "pink", "type": "shotgun", "vision": 3.13, "half": 41.2},
+				{"pos": Vector2i(4, 10), "patrol": [Vector2i(4, 10), Vector2i(5, 10), Vector2i(6, 10), Vector2i(7, 10), Vector2i(8, 10), Vector2i(9, 10), Vector2i(9, 11), Vector2i(9, 12), Vector2i(9, 13), Vector2i(8, 13), Vector2i(7, 13), Vector2i(6, 13), Vector2i(5, 13), Vector2i(4, 13), Vector2i(4, 14), Vector2i(3, 14)], "speed": 1.31, "color": "orange", "type": "rifle", "vision": 3.13, "half": 41.2},
+				{"pos": Vector2i(6, 9), "patrol": [Vector2i(6, 9), Vector2i(7, 9), Vector2i(7, 10), Vector2i(8, 10), Vector2i(9, 10), Vector2i(9, 11), Vector2i(9, 12), Vector2i(9, 13), Vector2i(8, 13), Vector2i(7, 13), Vector2i(6, 13), Vector2i(5, 13), Vector2i(4, 13), Vector2i(4, 14), Vector2i(3, 14), Vector2i(3, 15)], "speed": 1.31, "color": "pink", "type": "shotgun", "vision": 3.13, "half": 41.2},
+				{"pos": Vector2i(4, 6), "patrol": [Vector2i(4, 6), Vector2i(5, 6), Vector2i(5, 7), Vector2i(5, 8), Vector2i(6, 8), Vector2i(6, 9), Vector2i(7, 9), Vector2i(7, 10), Vector2i(8, 10), Vector2i(9, 10), Vector2i(9, 11), Vector2i(9, 12), Vector2i(9, 13), Vector2i(8, 13), Vector2i(7, 13), Vector2i(7, 14)], "speed": 1.31, "color": "orange", "type": "rifle", "vision": 3.13, "half": 41.2},
+				{"pos": Vector2i(5, 4), "patrol": [Vector2i(5, 4), Vector2i(4, 4), Vector2i(3, 4), Vector2i(2, 4), Vector2i(2, 5), Vector2i(2, 6), Vector2i(2, 7), Vector2i(3, 7), Vector2i(4, 7), Vector2i(5, 7), Vector2i(5, 8), Vector2i(6, 8), Vector2i(6, 9), Vector2i(6, 10), Vector2i(6, 11)], "speed": 1.41, "color": "pink", "type": "shotgun", "vision": 3.13, "half": 41.2},
 			],
+			"key": Vector2i(4, 9),
+			"exit": Vector2i(2, 1),
 		},
 		{
 			"name": "Golden Hall",
@@ -168,29 +183,31 @@ static func get_levels() -> Array:
 			"theme": "warehouse",
 			"map": [
 				"###########",
-				"#...X.C...#",
+				"#...X...JE#",
 				"#.X.X..X..#",
-				"#.C.......#",
+				"#B.C...C..#",
 				"#X..X.X##.#",
-				"#.....XX###",
-				"#X.JXX.####",
-				"#XX....#C.#",
-				"#...X.....#",
-				"#XX..BX...#",
-				"###C..X..X#",
-				"##X.X..CXX#",
-				"##C.X.X..X#",
-				"#....BCXX.#",
-				"#B.....P..#",
-				"#.XCX.X...#",
+				"#.B...XX###",
+				"#X..XXK####",
+				"#XX.C..#..#",
+				"#...X....C#",
+				"#XX...X...#",
+				"###...X..X#",
+				"##X.X...XX#",
+				"##..X.X..X#",
+				"#....C.XX.#",
+				"#...CC...B#",
+				"#.XPXCX...#",
 				"###########",
 			],
 			"guards": [
-				{"pos": Vector2i(5, 2), "patrol": [Vector2i(5, 2), Vector2i(5, 3), Vector2i(5, 4), Vector2i(5, 5)], "speed": 1.38, "color": "orange", "type": "rifle", "vision": 3.17, "half": 41.5},
-				{"pos": Vector2i(5, 8), "patrol": [Vector2i(5, 8), Vector2i(6, 8), Vector2i(7, 8)], "speed": 1.43, "color": "pink", "type": "shotgun", "vision": 3.17, "half": 41.5},
-				{"pos": Vector2i(1, 13), "patrol": [Vector2i(1, 13), Vector2i(2, 13), Vector2i(3, 13), Vector2i(4, 13)], "speed": 1.38, "color": "orange", "type": "rifle", "vision": 3.17, "half": 41.5},
-				{"pos": Vector2i(3, 1), "patrol": [Vector2i(3, 1), Vector2i(3, 5)], "speed": 1.48, "color": "pink", "type": "shotgun", "vision": 3.17, "half": 41.5},
+				{"pos": Vector2i(9, 4), "patrol": [Vector2i(9, 4), Vector2i(9, 3), Vector2i(8, 3), Vector2i(7, 3), Vector2i(6, 3), Vector2i(5, 3), Vector2i(4, 3), Vector2i(3, 3), Vector2i(3, 4), Vector2i(3, 5), Vector2i(3, 6), Vector2i(3, 7), Vector2i(4, 7), Vector2i(5, 7), Vector2i(6, 7), Vector2i(6, 8)], "speed": 1.48, "color": "orange", "type": "rifle", "vision": 3.17, "half": 41.5},
+				{"pos": Vector2i(2, 4), "patrol": [Vector2i(2, 4), Vector2i(3, 4), Vector2i(3, 5), Vector2i(3, 6), Vector2i(3, 7), Vector2i(4, 7), Vector2i(5, 7), Vector2i(5, 8), Vector2i(5, 9), Vector2i(5, 10), Vector2i(5, 11), Vector2i(5, 12), Vector2i(5, 13), Vector2i(6, 13), Vector2i(6, 14), Vector2i(7, 14)], "speed": 1.48, "color": "pink", "type": "shotgun", "vision": 3.17, "half": 41.5},
+				{"pos": Vector2i(8, 2), "patrol": [Vector2i(8, 2), Vector2i(8, 3), Vector2i(7, 3), Vector2i(6, 3), Vector2i(5, 3), Vector2i(4, 3), Vector2i(3, 3), Vector2i(3, 4), Vector2i(3, 5), Vector2i(3, 6), Vector2i(3, 7), Vector2i(4, 7), Vector2i(5, 7), Vector2i(6, 7), Vector2i(6, 8), Vector2i(7, 8)], "speed": 1.38, "color": "orange", "type": "rifle", "vision": 3.17, "half": 41.5},
+				{"pos": Vector2i(4, 5), "patrol": [Vector2i(4, 5), Vector2i(3, 5), Vector2i(3, 6), Vector2i(3, 7), Vector2i(4, 7), Vector2i(5, 7), Vector2i(5, 8), Vector2i(5, 9), Vector2i(5, 10), Vector2i(5, 11), Vector2i(5, 12), Vector2i(5, 13), Vector2i(6, 13), Vector2i(6, 14), Vector2i(7, 14), Vector2i(8, 14)], "speed": 1.43, "color": "pink", "type": "shotgun", "vision": 3.17, "half": 41.5},
 			],
+			"key": Vector2i(6, 6),
+			"exit": Vector2i(9, 1),
 		},
 		{
 			"name": "The Maze",
@@ -198,30 +215,32 @@ static func get_levels() -> Array:
 			"theme": "warehouse",
 			"map": [
 				"###########",
-				"#...C.....#",
-				"#..#XX.#..#",
+				"#..B.C..J.#",
+				"#E.#XX.#..#",
 				"#X.#.XB#..#",
 				"#XX#.###..#",
-				"#....#.#..#",
+				"#...C#.#..#",
 				"#XX#...#..#",
-				"#X...XJ...#",
+				"#X...X...C#",
 				"#..#X###XC#",
-				"#XC#...#X.#",
-				"#XBB.X.#C.#",
-				"#CX#CCC#..#",
-				"#..#X...C.#",
-				"#..#.....X#",
-				"#.X.X..#.X#",
-				"#...P.....#",
+				"#X.#...#X.#",
+				"#X...X.#K.#",
+				"#.X#..C#..#",
+				"#..#X.....#",
+				"#C.#.C..CX#",
+				"#.XPX..#.X#",
+				"#....C....#",
 				"###########",
 			],
 			"guards": [
-				{"pos": Vector2i(9, 2), "patrol": [Vector2i(9, 2), Vector2i(9, 5)], "speed": 1.49, "color": "orange", "type": "rifle", "vision": 3.2, "half": 41.9},
-				{"pos": Vector2i(2, 7), "patrol": [Vector2i(2, 7), Vector2i(3, 7), Vector2i(4, 7)], "speed": 1.54, "color": "pink", "type": "shotgun", "vision": 3.2, "half": 41.9},
-				{"pos": Vector2i(1, 12), "patrol": [Vector2i(1, 12), Vector2i(1, 13), Vector2i(1, 14), Vector2i(1, 15)], "speed": 1.44, "color": "orange", "type": "rifle", "vision": 3.2, "half": 41.9},
-				{"pos": Vector2i(2, 5), "patrol": [Vector2i(2, 5), Vector2i(4, 5)], "speed": 1.54, "color": "pink", "type": "shotgun", "vision": 3.2, "half": 41.9},
-				{"pos": Vector2i(7, 7), "patrol": [Vector2i(7, 7), Vector2i(9, 7)], "speed": 1.49, "color": "orange", "type": "rifle", "vision": 3.2, "half": 41.9},
+				{"pos": Vector2i(6, 13), "patrol": [Vector2i(6, 13), Vector2i(7, 13), Vector2i(8, 13), Vector2i(8, 12), Vector2i(9, 12), Vector2i(9, 11), Vector2i(9, 10), Vector2i(9, 9), Vector2i(9, 8), Vector2i(9, 7), Vector2i(8, 7), Vector2i(7, 7)], "speed": 1.54, "color": "orange", "type": "rifle", "vision": 3.2, "half": 41.9},
+				{"pos": Vector2i(5, 6), "patrol": [Vector2i(5, 6), Vector2i(6, 6), Vector2i(6, 7), Vector2i(7, 7), Vector2i(8, 7), Vector2i(9, 7), Vector2i(9, 6), Vector2i(9, 5), Vector2i(9, 4), Vector2i(9, 3), Vector2i(9, 2), Vector2i(9, 1)], "speed": 1.49, "color": "pink", "type": "shotgun", "vision": 3.2, "half": 41.9},
+				{"pos": Vector2i(4, 9), "patrol": [Vector2i(4, 9), Vector2i(5, 9), Vector2i(6, 9), Vector2i(6, 10), Vector2i(6, 11), Vector2i(6, 12), Vector2i(7, 12), Vector2i(8, 12), Vector2i(8, 13), Vector2i(8, 14), Vector2i(8, 15), Vector2i(9, 15)], "speed": 1.44, "color": "orange", "type": "rifle", "vision": 3.2, "half": 41.9},
+				{"pos": Vector2i(8, 3), "patrol": [Vector2i(8, 3), Vector2i(8, 4), Vector2i(8, 5), Vector2i(8, 6), Vector2i(8, 7), Vector2i(7, 7), Vector2i(6, 7), Vector2i(6, 6), Vector2i(5, 6), Vector2i(4, 6), Vector2i(4, 7), Vector2i(3, 7)], "speed": 1.44, "color": "pink", "type": "shotgun", "vision": 3.2, "half": 41.9},
+				{"pos": Vector2i(1, 8), "patrol": [Vector2i(1, 8), Vector2i(2, 8), Vector2i(2, 9), Vector2i(2, 10), Vector2i(3, 10), Vector2i(4, 10), Vector2i(4, 11), Vector2i(5, 11), Vector2i(6, 11), Vector2i(6, 12), Vector2i(6, 13), Vector2i(6, 14)], "speed": 1.54, "color": "orange", "type": "rifle", "vision": 3.2, "half": 41.9},
 			],
+			"key": Vector2i(8, 10),
+			"exit": Vector2i(1, 2),
 		},
 		{
 			"name": "Night Watch",
@@ -229,30 +248,32 @@ static func get_levels() -> Array:
 			"theme": "warehouse",
 			"map": [
 				"###########",
-				"#......X.X#",
-				"#X.XX...C.#",
+				"#...J..XEX#",
+				"#X.XX.....#",
 				"##..#####.#",
-				"#....X..#.#",
-				"#.....X...#",
-				"####CCX####",
+				"#.C..X..#.#",
+				"#B....X...#",
+				"####.CX####",
 				"#.........#",
-				"#....C....#",
-				"#.###.J####",
+				"#........B#",
+				"#C###K.####",
 				"#X.CXX....#",
-				"##....XXB.#",
+				"##....XXCC#",
 				"#####.###.#",
-				"#P.CCBC.#.#",
-				"#.X.X....C#",
-				"#.....X.#.#",
+				"#....C.P#.#",
+				"#.X.X.....#",
+				"#C...CX.#.#",
 				"###########",
 			],
 			"guards": [
-				{"pos": Vector2i(1, 1), "patrol": [Vector2i(1, 1), Vector2i(2, 1), Vector2i(3, 1)], "speed": 1.61, "color": "orange", "type": "rifle", "vision": 3.23, "half": 42.2},
-				{"pos": Vector2i(3, 7), "patrol": [Vector2i(3, 7), Vector2i(8, 7)], "speed": 1.56, "color": "pink", "type": "shotgun", "vision": 3.23, "half": 42.2},
-				{"pos": Vector2i(1, 15), "patrol": [Vector2i(1, 15), Vector2i(3, 15)], "speed": 1.61, "color": "blue", "type": "grenade", "vision": 3.23, "half": 42.2},
-				{"pos": Vector2i(1, 4), "patrol": [Vector2i(1, 4), Vector2i(3, 4)], "speed": 1.56, "color": "orange", "type": "rifle", "vision": 3.23, "half": 42.2},
-				{"pos": Vector2i(7, 10), "patrol": [Vector2i(7, 10), Vector2i(9, 10)], "speed": 1.56, "color": "pink", "type": "shotgun", "vision": 3.23, "half": 42.2},
+				{"pos": Vector2i(1, 4), "patrol": [Vector2i(1, 4), Vector2i(2, 4), Vector2i(3, 4), Vector2i(4, 4), Vector2i(4, 5), Vector2i(5, 5), Vector2i(5, 6), Vector2i(5, 7), Vector2i(6, 7), Vector2i(7, 7), Vector2i(8, 7), Vector2i(9, 7)], "speed": 1.56, "color": "orange", "type": "rifle", "vision": 3.23, "half": 42.2},
+				{"pos": Vector2i(1, 7), "patrol": [Vector2i(1, 7), Vector2i(2, 7), Vector2i(3, 7), Vector2i(4, 7), Vector2i(5, 7), Vector2i(6, 7), Vector2i(6, 8), Vector2i(6, 9), Vector2i(6, 10), Vector2i(7, 10), Vector2i(8, 10), Vector2i(9, 10)], "speed": 1.56, "color": "pink", "type": "shotgun", "vision": 3.23, "half": 42.2},
+				{"pos": Vector2i(1, 14), "patrol": [Vector2i(1, 14), Vector2i(1, 15), Vector2i(2, 15), Vector2i(3, 15), Vector2i(4, 15), Vector2i(5, 15), Vector2i(5, 14), Vector2i(6, 14), Vector2i(7, 14), Vector2i(8, 14), Vector2i(9, 14), Vector2i(9, 15)], "speed": 1.56, "color": "blue", "type": "grenade", "vision": 3.23, "half": 42.2},
+				{"pos": Vector2i(5, 2), "patrol": [Vector2i(5, 2), Vector2i(6, 2), Vector2i(7, 2), Vector2i(8, 2), Vector2i(9, 2), Vector2i(9, 3), Vector2i(9, 4), Vector2i(9, 5), Vector2i(8, 5), Vector2i(7, 5), Vector2i(7, 4), Vector2i(6, 4)], "speed": 1.51, "color": "orange", "type": "rifle", "vision": 3.23, "half": 42.2},
+				{"pos": Vector2i(8, 8), "patrol": [Vector2i(8, 8), Vector2i(7, 8), Vector2i(6, 8), Vector2i(5, 8), Vector2i(4, 8), Vector2i(4, 7), Vector2i(4, 6), Vector2i(4, 5), Vector2i(3, 5), Vector2i(2, 5), Vector2i(2, 4), Vector2i(2, 3)], "speed": 1.56, "color": "pink", "type": "shotgun", "vision": 3.23, "half": 42.2},
 			],
+			"key": Vector2i(5, 9),
+			"exit": Vector2i(8, 1),
 		},
 		{
 			"name": "Royal Guard",
@@ -260,30 +281,32 @@ static func get_levels() -> Array:
 			"theme": "warehouse",
 			"map": [
 				"###########",
-				"#....B..XX#",
-				"#....X...X#",
-				"#.J#B.C##.#",
+				"#....C..XX#",
+				"#....X.C.X#",
+				"#..#B.J##.#",
 				"#.X######.#",
-				"#.....CB..#",
+				"#.....CC..#",
 				"#X.C..XX..#",
-				"#X.CX..X.C#",
-				"#...X...XJ#",
-				"#X..#.CX..#",
-				"#.C.#.XX.C#",
-				"#.###X.X..#",
-				"#.X##...#.#",
+				"#X..X..XJ.#",
+				"#...X...X.#",
+				"#X..#K.X..#",
+				"#.C.#.XX..#",
+				"#.###X.XEC#",
+				"#.X##.B.#.#",
 				"#.X##..##.#",
-				"#..PX.X.X.#",
-				"#.X.XC....#",
+				"#...X.X.XC#",
+				"#BXPXC....#",
 				"###########",
 			],
 			"guards": [
-				{"pos": Vector2i(6, 2), "patrol": [Vector2i(6, 2), Vector2i(8, 2)], "speed": 1.67, "color": "orange", "type": "rifle", "vision": 3.26, "half": 42.5},
-				{"pos": Vector2i(1, 8), "patrol": [Vector2i(1, 8), Vector2i(3, 8)], "speed": 1.57, "color": "pink", "type": "shotgun", "vision": 3.26, "half": 42.5},
-				{"pos": Vector2i(9, 11), "patrol": [Vector2i(9, 11), Vector2i(9, 12), Vector2i(9, 13), Vector2i(9, 14), Vector2i(9, 15)], "speed": 1.62, "color": "blue", "type": "grenade", "vision": 3.26, "half": 42.5},
-				{"pos": Vector2i(1, 1), "patrol": [Vector2i(1, 1), Vector2i(1, 5)], "speed": 1.67, "color": "orange", "type": "rifle", "vision": 3.26, "half": 42.5},
-				{"pos": Vector2i(5, 8), "patrol": [Vector2i(5, 8), Vector2i(6, 8), Vector2i(7, 8)], "speed": 1.62, "color": "pink", "type": "shotgun", "vision": 3.26, "half": 42.5},
+				{"pos": Vector2i(3, 7), "patrol": [Vector2i(3, 7), Vector2i(2, 7), Vector2i(2, 8), Vector2i(2, 9), Vector2i(2, 10), Vector2i(1, 10), Vector2i(1, 11), Vector2i(1, 12), Vector2i(1, 13), Vector2i(1, 14), Vector2i(2, 14), Vector2i(3, 14)], "speed": 1.62, "color": "orange", "type": "rifle", "vision": 3.26, "half": 42.5},
+				{"pos": Vector2i(9, 8), "patrol": [Vector2i(9, 8), Vector2i(9, 9), Vector2i(9, 10), Vector2i(9, 11), Vector2i(9, 12), Vector2i(9, 13), Vector2i(9, 14), Vector2i(9, 15), Vector2i(8, 15), Vector2i(7, 15), Vector2i(6, 15), Vector2i(5, 15)], "speed": 1.67, "color": "pink", "type": "shotgun", "vision": 3.26, "half": 42.5},
+				{"pos": Vector2i(4, 1), "patrol": [Vector2i(4, 1), Vector2i(3, 1), Vector2i(2, 1), Vector2i(1, 1), Vector2i(1, 2), Vector2i(1, 3), Vector2i(1, 4), Vector2i(1, 5), Vector2i(2, 5), Vector2i(3, 5), Vector2i(4, 5), Vector2i(5, 5)], "speed": 1.62, "color": "blue", "type": "grenade", "vision": 3.26, "half": 42.5},
+				{"pos": Vector2i(2, 3), "patrol": [Vector2i(2, 3), Vector2i(1, 3), Vector2i(1, 4), Vector2i(1, 5), Vector2i(2, 5), Vector2i(3, 5), Vector2i(4, 5), Vector2i(5, 5), Vector2i(6, 5), Vector2i(7, 5), Vector2i(8, 5), Vector2i(9, 5)], "speed": 1.67, "color": "orange", "type": "rifle", "vision": 3.26, "half": 42.5},
+				{"pos": Vector2i(7, 8), "patrol": [Vector2i(7, 8), Vector2i(6, 8), Vector2i(5, 8), Vector2i(5, 7), Vector2i(5, 6), Vector2i(5, 5), Vector2i(6, 5), Vector2i(7, 5), Vector2i(8, 5), Vector2i(9, 5), Vector2i(9, 6), Vector2i(9, 7)], "speed": 1.67, "color": "pink", "type": "shotgun", "vision": 3.26, "half": 42.5},
 			],
+			"key": Vector2i(5, 9),
+			"exit": Vector2i(8, 11),
 		},
 		{
 			"name": "Shadow Master",
@@ -291,31 +314,33 @@ static func get_levels() -> Array:
 			"theme": "warehouse",
 			"map": [
 				"###########",
-				"#X.C.XX..X#",
-				"#C.XXX.BXX#",
-				"#...BC.X###",
-				"#XX....X###",
-				"#.X#.#....#",
-				"#C.#...#XX#",
-				"#..##...#C#",
-				"#...B..C#.#",
-				"#..#.X..C.#",
+				"#XB.EXX..X#",
+				"#C.XXX..XX#",
+				"#......X###",
+				"#XX...CX###",
+				"#.X#.#.C..#",
 				"#..#...#XX#",
-				"#..#J##...#",
-				"#X.C.C.X..#",
-				"#P.XCX..J.#",
-				"#....X.#X.#",
+				"#..##.JC#.#",
+				"#..C....#.#",
+				"#C.#CXJ...#",
+				"#..#.K.#XX#",
+				"#C.#.##B..#",
+				"#X.....X..#",
+				"#..X.X....#",
+				"#C.C.XP#X.#",
 				"#...XX.#..#",
 				"###########",
 			],
 			"guards": [
-				{"pos": Vector2i(6, 5), "patrol": [Vector2i(6, 5), Vector2i(7, 5), Vector2i(8, 5)], "speed": 1.64, "color": "orange", "type": "rifle", "vision": 3.3, "half": 42.8},
-				{"pos": Vector2i(2, 6), "patrol": [Vector2i(2, 6), Vector2i(2, 7), Vector2i(2, 8)], "speed": 1.64, "color": "pink", "type": "shotgun", "vision": 3.3, "half": 42.8},
-				{"pos": Vector2i(7, 11), "patrol": [Vector2i(7, 11), Vector2i(9, 11)], "speed": 1.74, "color": "blue", "type": "grenade", "vision": 3.3, "half": 42.8},
-				{"pos": Vector2i(3, 4), "patrol": [Vector2i(3, 4), Vector2i(4, 4), Vector2i(5, 4)], "speed": 1.69, "color": "orange", "type": "rifle", "vision": 3.3, "half": 42.8},
-				{"pos": Vector2i(4, 10), "patrol": [Vector2i(4, 10), Vector2i(5, 10), Vector2i(6, 10)], "speed": 1.64, "color": "pink", "type": "shotgun", "vision": 3.3, "half": 42.8},
-				{"pos": Vector2i(6, 13), "patrol": [Vector2i(6, 13), Vector2i(6, 14), Vector2i(6, 15)], "speed": 1.74, "color": "blue", "type": "grenade", "vision": 3.3, "half": 42.8},
+				{"pos": Vector2i(1, 9), "patrol": [Vector2i(1, 9), Vector2i(2, 9), Vector2i(2, 10), Vector2i(2, 11), Vector2i(2, 12), Vector2i(3, 12), Vector2i(4, 12), Vector2i(5, 12), Vector2i(6, 12), Vector2i(6, 13), Vector2i(7, 13), Vector2i(8, 13)], "speed": 1.64, "color": "orange", "type": "rifle", "vision": 3.3, "half": 42.8},
+				{"pos": Vector2i(5, 6), "patrol": [Vector2i(5, 6), Vector2i(5, 7), Vector2i(5, 8), Vector2i(4, 8), Vector2i(3, 8), Vector2i(2, 8), Vector2i(2, 9), Vector2i(2, 10), Vector2i(2, 11), Vector2i(2, 12), Vector2i(2, 13), Vector2i(1, 13)], "speed": 1.64, "color": "pink", "type": "shotgun", "vision": 3.3, "half": 42.8},
+				{"pos": Vector2i(9, 15), "patrol": [Vector2i(9, 15), Vector2i(9, 14), Vector2i(9, 13), Vector2i(8, 13), Vector2i(7, 13), Vector2i(6, 13), Vector2i(6, 12), Vector2i(5, 12), Vector2i(4, 12), Vector2i(4, 13), Vector2i(4, 14), Vector2i(3, 14)], "speed": 1.69, "color": "blue", "type": "grenade", "vision": 3.3, "half": 42.8},
+				{"pos": Vector2i(6, 3), "patrol": [Vector2i(6, 3), Vector2i(6, 4), Vector2i(6, 5), Vector2i(6, 6), Vector2i(5, 6), Vector2i(5, 7), Vector2i(5, 8), Vector2i(4, 8), Vector2i(3, 8), Vector2i(2, 8), Vector2i(1, 8), Vector2i(1, 7)], "speed": 1.74, "color": "orange", "type": "rifle", "vision": 3.3, "half": 42.8},
+				{"pos": Vector2i(1, 6), "patrol": [Vector2i(1, 6), Vector2i(2, 6), Vector2i(2, 7), Vector2i(2, 8), Vector2i(3, 8), Vector2i(4, 8), Vector2i(5, 8), Vector2i(6, 8), Vector2i(7, 8), Vector2i(7, 9), Vector2i(8, 9), Vector2i(9, 9)], "speed": 1.69, "color": "pink", "type": "shotgun", "vision": 3.3, "half": 42.8},
+				{"pos": Vector2i(3, 15), "patrol": [Vector2i(3, 15), Vector2i(3, 14), Vector2i(4, 14), Vector2i(4, 13), Vector2i(4, 12), Vector2i(5, 12), Vector2i(6, 12), Vector2i(6, 13), Vector2i(7, 13), Vector2i(8, 13), Vector2i(9, 13), Vector2i(9, 12)], "speed": 1.69, "color": "blue", "type": "grenade", "vision": 3.3, "half": 42.8},
 			],
+			"key": Vector2i(5, 10),
+			"exit": Vector2i(4, 1),
 		},
 	]
 	# Levels 11-50: generated by tools/gen_levels.py (deterministic seeds).
@@ -354,6 +379,8 @@ static func validate() -> Array:
 			trap_tiles[t["pos"]] = true
 		var start := Vector2i(-1, -1)
 		var goals: Array = []
+		var key_tile := Vector2i(-1, -1)
+		var exit_tile := Vector2i(-1, -1)
 		for y in range(17):
 			var row: String = map[y]
 			if row.length() != 11:
@@ -364,6 +391,23 @@ static func validate() -> Array:
 					start = Vector2i(x, y)
 				elif ch == "C" or ch == "J":
 					goals.append(Vector2i(x, y))
+				elif ch == "K":
+					key_tile = Vector2i(x, y)
+					goals.append(key_tile)
+				elif ch == "E":
+					exit_tile = Vector2i(x, y)
+					goals.append(exit_tile)
+		if key_tile.x < 0:
+			problems.append("L%d: no key tile" % [li + 1])
+		if exit_tile.x < 0:
+			problems.append("L%d: no exit tile" % [li + 1])
+		# The "key"/"exit" dict fields must agree with the map chars.
+		if lv.has("key") and key_tile.x >= 0 and lv["key"] != key_tile:
+			problems.append("L%d: key field %s != map key %s" % [li + 1, str(lv["key"]), str(key_tile)])
+		if lv.has("exit") and exit_tile.x >= 0 and lv["exit"] != exit_tile:
+			problems.append("L%d: exit field %s != map exit %s" % [li + 1, str(lv["exit"]), str(exit_tile)])
+		if not lv.has("key") or not lv.has("exit"):
+			problems.append("L%d: missing key/exit fields" % [li + 1])
 		if start.x < 0:
 			problems.append("L%d: no player start" % [li + 1])
 			continue
@@ -445,12 +489,18 @@ static func validate() -> Array:
 					problems.append("L%d: goal %s only reachable through a trap" % [li + 1, str(goal)])
 					break
 		# Vision-cone checks (mirror of tools/gen_levels.py):
-		#  - clean start: player start outside every cone at t=0 AND not
-		#    on/adjacent to any patrol route tile
-		#  - approach window: every guard has a patrol waypoint where a
-		#    walkable neighbour tile (not on any route, not a trap) is
-		#    outside EVERY guard's cone, so the player always has a
-		#    timing window to strike from behind.
+		#  - clean start: player start outside every cone at t=0, NOT on
+		#    a patrol route, and >= 3 tiles from every guard spawn (no
+		#    guard walks past in the opening seconds)
+		#  - approach window: every guard has a patrol waypoint where the
+		#    player can strike from behind — either a walkable neighbour
+		#    tile (not on any route, not a trap) outside EVERY guard's
+		#    cone, or the tile two steps back along the guard's own
+		#    patrol (the guard just walked away from it, outside his
+		#    forward cone and every other guard's cone)
+		#  - key/exit placement: key 1-3 tiles from a patrol route and
+		#    >= 4 from the player start; exit far from the start and
+		#    never on a patrol route.
 		var snap: Array = []
 		for g in lv["guards"]:
 			var patrol: Array = g["patrol"]
@@ -464,10 +514,25 @@ static func validate() -> Array:
 			if _tile_visible(map, sn["pos"], sn["facing"], sn["vision"], sn["half"], start):
 				problems.append("L%d: player start inside a vision cone at t=0" % [li + 1])
 				break
-		for rt in all_route:
-			if maxi(absi(rt.x - start.x), absi(rt.y - start.y)) <= 1:
-				problems.append("L%d: player start on/adjacent to patrol route at %s" % [li + 1, str(rt)])
+		if all_route.has(start):
+			problems.append("L%d: player start on patrol route at %s" % [li + 1, str(start)])
+		for g in lv["guards"]:
+			if absi(int(g["pos"].x) - start.x) + absi(int(g["pos"].y) - start.y) < 3:
+				problems.append("L%d: player start < 3 tiles from a guard spawn" % [li + 1])
 				break
+		if key_tile.x >= 0:
+			var key_dmin := 99
+			for rt in all_route:
+				key_dmin = mini(key_dmin, absi(rt.x - key_tile.x) + absi(rt.y - key_tile.y))
+			if key_dmin < 1 or key_dmin > 3:
+				problems.append("L%d: key %d tiles from nearest patrol route (want 1..3)" % [li + 1, key_dmin])
+			if absi(key_tile.x - start.x) + absi(key_tile.y - start.y) < 4:
+				problems.append("L%d: key too close to player start" % [li + 1])
+		if exit_tile.x >= 0:
+			if absi(exit_tile.x - start.x) + absi(exit_tile.y - start.y) < 7:
+				problems.append("L%d: exit too close to player start" % [li + 1])
+			if all_route.has(exit_tile):
+				problems.append("L%d: exit on a patrol route" % [li + 1])
 		for gi in range(lv["guards"].size()):
 			var g: Dictionary = lv["guards"][gi]
 			var patrol: Array = g["patrol"]
@@ -477,6 +542,24 @@ static func validate() -> Array:
 			for k in range(patrol.size()):
 				var w: Vector2i = patrol[k]
 				var facing: float = _patrol_facing(patrol, k)
+				# "Sneak up behind": the tile two steps back along this
+				# guard's own patrol — he just walked away from it, so
+				# it is outside his forward cone; it must also be
+				# outside every other guard's cone and off traps.
+				if k >= 2:
+					var back: Vector2i = patrol[k - 2]
+					if not trap_tiles.has(back) and not _tile_visible(map, w, facing, g_vision, g_half, back):
+						var seen_by_other := false
+						for oj in range(snap.size()):
+							if oj == gi:
+								continue
+							var o2: Dictionary = snap[oj]
+							if _tile_visible(map, o2["pos"], o2["facing"], o2["vision"], o2["half"], back):
+								seen_by_other = true
+								break
+						if not seen_by_other:
+							has_window = true
+							break
 				for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
 					var nb: Vector2i = w + d
 					if nb.x < 0 or nb.y < 0 or nb.x >= 11 or nb.y >= 17:

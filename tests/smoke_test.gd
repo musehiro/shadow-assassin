@@ -67,25 +67,40 @@ func _process(_delta: float) -> bool:
 					return _fail("kills left too few blood pools (%d)" % game.blood_pools)
 				if game.cash_earned < 60:
 					return _fail("kills paid too little cash (cash_earned=%d)" % game.cash_earned)
-				phase = 4
-				wait_until = frame + 240
+				# Killing all guards no longer wins by itself (v3 win =
+				# key + exit): walk to the key, then to the exit.
+				game.debug_move_to_tile(game.key_tile)
+				print("[SMOKE] all guards down; moving to key ", game.key_tile)
+				phase = 8
+				wait_until = frame + 900
 			elif game.kills == 1 and game.targets_left == 1:
 				# First guard down — move on to the second (noise may have alerted it).
 				game.debug_teleport_behind_guard(0)
 				print("[SMOKE] first kill done, teleported behind remaining guard")
 			elif frame >= wait_until:
 				return _fail("guards were not contact-killed in time (targets_left=%d)" % game.targets_left)
-		4:
+		8:
+			var game = main.game
+			if game.key_collected:
+				print("[SMOKE] key collected; moving to exit ", game.exit_tile)
+				game.debug_move_to_tile(game.exit_tile)
+				phase = 9
+				wait_until = frame + 900
+			elif frame >= wait_until:
+				return _fail("key was not collected in time")
+		9:
 			var game = main.game
 			if game.state == game.State.WON:
-				print("[SMOKE] state is WON (Cleared banner shown)")
+				print("[SMOKE] key + exit -> state is WON (Cleared banner shown)")
 				var gems_before: int = int(main.save.get("total_gems", 0))
 				game.debug_collect()
 				print("[SMOKE] Collect banked rewards; gems ", gems_before, " -> ", main.save.get("total_gems", 0))
 				phase = 5
 				wait_until = frame + 60
 			elif frame >= wait_until:
-				return _fail("state did not become WON (state=%d)" % game.state)
+				return _fail("state did not become WON at the exit (state=%d)" % game.state)
+		4:
+			return _fail("smoke phase 4 is unreachable (win flow moved to phases 8-9)")
 		5:
 			# Collect advanced to level 2; now test shooting + death there.
 			var game = main.game
