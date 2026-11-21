@@ -16,6 +16,7 @@ var _name := ""
 
 
 func _initialize() -> void:
+	KillGuide.force_skip = true # v6: the first-play kill guide would pause the game
 	_level = int(OS.get_environment("SHOT_LEVEL")) if OS.get_environment("SHOT_LEVEL") != "" else 0
 	_outdir = OS.get_environment("OUTDIR") if OS.get_environment("OUTDIR") != "" else "res://verification/shots-v4"
 	_tutorial = OS.get_environment("SHOT_TUTORIAL") == "1"

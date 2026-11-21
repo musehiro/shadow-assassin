@@ -52,14 +52,35 @@ const TEX := {
 	"exit": "res://art/exit.png",
 }
 
-## Themes per level band — one art set, four tints.
-## level.get("theme") wins; otherwise derived from the level number.
+## Themes per level band — one art set, four STRONG tints (v6: Buddhika
+## wants every mission to LOOK different — the colours must change from
+## mission to mission). Each band has its own bold hue: warm honey for
+## the warehouse, electric blue-violet for cyber city, bright mint for
+## the lab, pale crimson for the prison. Floors stay LIGHT (all channels
+## >= 0.6) so guards, cones, the key and the exit stay readable on every
+## mission. level.get("theme") wins; otherwise derived from the number.
 const THEMES := {
-	"warehouse": {"floor": Color(1.0, 1.0, 1.0), "floor_alt": Color(0.96, 0.96, 0.97), "wall": Color(1.0, 1.0, 1.0), "crate": Color(1, 1, 1), "bg": Color(0.05, 0.05, 0.06)},
-	"cyber": {"floor": Color(0.42, 0.48, 0.95), "floor_alt": Color(0.36, 0.4, 0.85), "wall": Color(0.55, 0.42, 1.0), "crate": Color(0.7, 0.8, 1.0), "bg": Color(0.04, 0.03, 0.12)},
-	"lab": {"floor": Color(1.25, 1.28, 1.3), "floor_alt": Color(1.1, 1.14, 1.16), "wall": Color(0.95, 0.97, 1.0), "crate": Color(0.9, 0.95, 1.0), "bg": Color(0.7, 0.73, 0.76)},
-	"prison": {"floor": Color(0.5, 0.52, 0.58), "floor_alt": Color(0.42, 0.44, 0.5), "wall": Color(0.38, 0.4, 0.46), "crate": Color(0.6, 0.62, 0.68), "bg": Color(0.03, 0.03, 0.04)},
+	"warehouse": {"floor": Color(1.0, 0.9, 0.68), "floor_alt": Color(0.94, 0.82, 0.58), "wall": Color(0.82, 0.58, 0.28), "crate": Color(1.0, 0.78, 0.42), "bg": Color(0.1, 0.06, 0.02)},
+	"cyber": {"floor": Color(0.62, 0.68, 1.08), "floor_alt": Color(0.52, 0.58, 0.98), "wall": Color(0.5, 0.42, 0.98), "crate": Color(0.72, 0.82, 1.05), "bg": Color(0.05, 0.04, 0.16)},
+	"lab": {"floor": Color(0.68, 1.02, 0.84), "floor_alt": Color(0.58, 0.94, 0.74), "wall": Color(0.32, 0.78, 0.55), "crate": Color(0.82, 1.0, 0.88), "bg": Color(0.02, 0.1, 0.07)},
+	"prison": {"floor": Color(1.0, 0.5, 0.72), "floor_alt": Color(0.92, 0.42, 0.64), "wall": Color(0.68, 0.25, 0.42), "crate": Color(1.0, 0.6, 0.75), "bg": Color(0.12, 0.03, 0.07)},
 }
+
+
+## Per-mission palette: the band tint, varied a little by level so even
+## two missions in the same band feel different (a lightness cycle over
+## 4 levels). Returns a fresh Dictionary — never the shared THEMES one.
+static func theme_palette_for_theme(band: String, idx: int) -> Dictionary:
+	var base: Dictionary = THEMES[band]
+	var step: float = [1.0, 0.9, 1.08, 0.96][idx % 4]
+	var pal := {}
+	for k in base.keys():
+		var c: Color = base[k]
+		if k == "bg":
+			pal[k] = Color(c.r * (1.0 + 0.12 * float(idx % 3)), c.g * (1.0 + 0.12 * float(idx % 3)), c.b * (1.0 + 0.12 * float(idx % 3)))
+		else:
+			pal[k] = Color(minf(c.r * step, 1.15), minf(c.g * step, 1.15), minf(c.b * step, 1.15))
+	return pal
 
 var state: int = State.PLAYING
 var level_index := 0
@@ -122,6 +143,7 @@ var _start_tile := Vector2i(1, 1)
 # v3 weapons + ads
 var _weapon_ui: WeaponUI
 var _tutorial: TutorialMarks
+var _kill_guide: KillGuide
 var _gun_cooldown := 0.0
 var _gun_target: Guard = null
 var _coins_doubled := false
@@ -166,6 +188,15 @@ func setup(p_level_index: int, p_save: Dictionary, p_sfx: Sfx) -> void:
 	_show_opening_banner()
 	sfx.start_music()
 	state = State.PLAYING
+	# v6 kill guide: two picture windows before the FIRST play only.
+	# If shown, the game is PAUSED until the second window closes.
+	_show_kill_guide_if_needed()
+
+
+func _show_kill_guide_if_needed() -> void:
+	_kill_guide = KillGuide.new()
+	add_child(_kill_guide)
+	_kill_guide.show_if_needed(self)
 
 
 static func _theme_for_level(idx: int) -> String:
@@ -289,7 +320,8 @@ func _build_board() -> void:
 	elim_dist = tile * 0.75
 	pickup_dist = tile * 0.44
 	origin = Vector2((view.x - COLS * tile) * 0.5, HUD_H + ((view.y - HUD_H - BAR_H) - ROWS * tile) * 0.5)
-	var th: Dictionary = THEMES[theme]
+	# v6 per-mission palette: the band tint, varied a little by level.
+	var th: Dictionary = theme_palette_for_theme(theme, level_index)
 	# backdrop — mouse_filter IGNORE: a full-screen Control with the
 	# default STOP filter swallows every tap before _unhandled_input
 	# ever runs. That is exactly why v2 never moved on a real phone.

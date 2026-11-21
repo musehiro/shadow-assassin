@@ -124,10 +124,12 @@ func _build_menu() -> void:
 	var view: Vector2 = get_viewport().get_visible_rect().size
 	var W := view.x
 	var H := view.y
-	# Colourful gradient background: deep purple melting into dark teal.
+	# Colourful gradient background: deep purple melting through vivid
+	# magenta and royal blue into dark teal (v6: even MORE colourful —
+	# richer, brighter, more vibrant than v5).
 	var grad := Gradient.new()
-	grad.colors = PackedColorArray([Color(0.22, 0.10, 0.45), Color(0.08, 0.16, 0.38), Color(0.02, 0.20, 0.22)])
-	grad.offsets = PackedFloat32Array([0.0, 0.55, 1.0])
+	grad.colors = PackedColorArray([Color(0.3, 0.08, 0.55), Color(0.45, 0.12, 0.6), Color(0.1, 0.2, 0.65), Color(0.05, 0.45, 0.55), Color(0.02, 0.2, 0.22)])
+	grad.offsets = PackedFloat32Array([0.0, 0.3, 0.55, 0.8, 1.0])
 	var gtex := GradientTexture2D.new()
 	gtex.gradient = grad
 	gtex.fill_from = Vector2(0.5, 0)
@@ -150,25 +152,34 @@ func _build_menu() -> void:
 	fstyle.set_corner_radius_all(24)
 	frame.add_theme_stylebox_override("panel", fstyle)
 	menu_layer.add_child(frame)
-	# Decorative coins + gems scattered over the background.
+	# Decorative coins + gems + stars scattered over the background
+	# (v6: more of them, brighter).
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 99
-	for i in range(12):
+	for i in range(20):
 		var s := Sprite2D.new()
 		s.texture = load("res://art/coin.png")
 		s.position = Vector2(rng.randf_range(30, W - 30), rng.randf_range(90, H - 90))
 		s.scale = Vector2(0.3, 0.3)
-		s.modulate = Color(1, 1, 1, 0.4)
+		s.modulate = Color(1, 1, 1, 0.55)
 		s.rotation = rng.randf_range(0, TAU)
 		menu_layer.add_child(s)
-	for i in range(6):
+	for i in range(10):
 		var g := Sprite2D.new()
 		g.texture = load(["res://art/gem_cyan.png", "res://art/gem_pink.png", "res://art/gem_purple.png"][i % 3])
 		g.position = Vector2(rng.randf_range(40, W - 40), rng.randf_range(90, H - 90))
 		g.scale = Vector2(0.3, 0.3)
-		g.modulate = Color(1, 1, 1, 0.5)
+		g.modulate = Color(1, 1, 1, 0.65)
 		g.rotation = rng.randf_range(0, TAU)
 		menu_layer.add_child(g)
+	for i in range(8):
+		var st := Sprite2D.new()
+		st.texture = load("res://art/star.png")
+		st.position = Vector2(rng.randf_range(40, W - 40), rng.randf_range(90, H - 90))
+		st.scale = Vector2(0.35, 0.35)
+		st.modulate = Color(1, 0.9, 0.4, 0.7)
+		st.rotation = rng.randf_range(0, TAU)
+		menu_layer.add_child(st)
 	# The assassin himself, large and faded, behind the title; guards
 	# flanking the wallet row.
 	var hero := Sprite2D.new()
@@ -190,7 +201,7 @@ func _build_menu() -> void:
 	title1.size = Vector2(W, 110)
 	title1.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title1.add_theme_font_size_override("font_size", 96)
-	title1.add_theme_color_override("font_color", Color(1, 0.85, 0.4))
+	title1.add_theme_color_override("font_color", Color(1, 0.72, 0.15))
 	title1.add_theme_color_override("font_outline_color", Color(0, 0, 0))
 	title1.add_theme_constant_override("outline_size", 10)
 	menu_layer.add_child(title1)
@@ -200,13 +211,25 @@ func _build_menu() -> void:
 	title2.size = Vector2(W, 110)
 	title2.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title2.add_theme_font_size_override("font_size", 96)
-	title2.add_theme_color_override("font_color", Color(0.35, 0.95, 0.85))
+	title2.add_theme_color_override("font_color", Color(0.25, 1, 0.9))
 	title2.add_theme_color_override("font_outline_color", Color(0, 0, 0))
 	title2.add_theme_constant_override("outline_size", 10)
 	menu_layer.add_child(title2)
+	# v6 tagline — the game's identity (Buddhika: hard game, think with
+	# your brain or you die). Under the title, in gold.
+	var tagline := Label.new()
+	tagline.text = "Think with your brain — or you die!"
+	tagline.position = Vector2(0, 312)
+	tagline.size = Vector2(W, 24)
+	tagline.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tagline.add_theme_font_size_override("font_size", 20)
+	tagline.add_theme_color_override("font_color", Color(1, 0.85, 0.35))
+	tagline.add_theme_color_override("font_outline_color", Color(0, 0, 0))
+	tagline.add_theme_constant_override("outline_size", 6)
+	menu_layer.add_child(tagline)
 	# Wallet chips: coins + gems, centred under the title.
 	var wallet := HBoxContainer.new()
-	wallet.position = Vector2(0, 330)
+	wallet.position = Vector2(0, 346)
 	wallet.size = Vector2(W, 56)
 	wallet.alignment = BoxContainer.ALIGNMENT_CENTER
 	wallet.add_theme_constant_override("separation", 24)
@@ -216,7 +239,7 @@ func _build_menu() -> void:
 	var unlocked: int = int(save.get("unlocked", 0))
 	# BIG PLAY button, front and centre — tap it and the game starts.
 	var play_frame := PanelContainer.new()
-	play_frame.position = Vector2(102, 392)
+	play_frame.position = Vector2(102, 408)
 	play_frame.size = Vector2(516, 136)
 	play_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var pfstyle := StyleBoxFlat.new()
@@ -226,32 +249,32 @@ func _build_menu() -> void:
 	menu_layer.add_child(play_frame)
 	var play := Button.new()
 	play.text = "▶  PLAY"
-	play.position = Vector2(110, 400)
+	play.position = Vector2(110, 416)
 	play.size = Vector2(500, 120)
 	play.add_theme_font_size_override("font_size", 48)
-	_style_button(play, Color(0.05, 0.65, 0.35))
+	_style_button(play, Color(0.0, 0.78, 0.42))
 	play.pressed.connect(func() -> void: sfx.play("click"); start_level(mini(unlocked, ShadowLevels.get_levels().size() - 1)))
 	menu_layer.add_child(play)
 	var cont := Label.new()
 	cont.text = "Continue: Level %d" % (mini(unlocked, ShadowLevels.get_levels().size() - 1) + 1)
-	cont.position = Vector2(0, 528)
+	cont.position = Vector2(0, 544)
 	cont.size = Vector2(W, 36)
 	cont.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	cont.add_theme_font_size_override("font_size", 24)
 	cont.add_theme_color_override("font_color", Color(1, 0.85, 0.4))
 	menu_layer.add_child(cont)
-	_build_roster(570)
+	_build_roster(586)
 	var grid_label := Label.new()
 	grid_label.text = "LEVELS"
-	grid_label.position = Vector2(0, 870)
+	grid_label.position = Vector2(0, 886)
 	grid_label.size = Vector2(W, 36)
 	grid_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	grid_label.add_theme_font_size_override("font_size", 24)
 	grid_label.add_theme_color_override("font_color", Color(1, 0.85, 0.4))
 	menu_layer.add_child(grid_label)
 	var scroll := ScrollContainer.new()
-	scroll.position = Vector2(90, 905)
-	scroll.size = Vector2(540, H - 905 - 40)
+	scroll.position = Vector2(90, 921)
+	scroll.size = Vector2(540, H - 921 - 40)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	menu_layer.add_child(scroll)
 	var grid := GridContainer.new()
@@ -266,7 +289,19 @@ func _build_menu() -> void:
 		b.text = "%d" % (i + 1)
 		b.custom_minimum_size = Vector2(96, 96)
 		b.add_theme_font_size_override("font_size", 26)
-		_style_button(b, Color(0.14, 0.42, 0.62) if i <= unlocked else Color(0.25, 0.28, 0.3))
+		# v6: level buttons are colour-coded by mission band, so the
+		# player can FEEL the mission change — amber warehouse,
+		# violet cyber city, green lab, red prison. Locked = grey.
+		var band_color := Color(0.78, 0.52, 0.12)
+		if i < 12:
+			band_color = Color(0.78, 0.52, 0.12)
+		elif i < 25:
+			band_color = Color(0.35, 0.35, 0.88)
+		elif i < 37:
+			band_color = Color(0.12, 0.62, 0.4)
+		else:
+			band_color = Color(0.78, 0.24, 0.3)
+		_style_button(b, band_color if i <= unlocked else Color(0.25, 0.28, 0.3))
 		if i > unlocked:
 			b.disabled = true
 		var idx := i
@@ -317,8 +352,12 @@ func _build_roster(y: float) -> void:
 		card.position = Vector2(x, y + 44)
 		card.size = Vector2(140, 240)
 		var style := StyleBoxFlat.new()
-		style.bg_color = Color(0.12, 0.16, 0.18) if not is_selected else Color(0.16, 0.32, 0.3)
-		style.border_color = Color(1, 0.85, 0.4) if is_selected else Color(0.4, 0.45, 0.5)
+		# v6: each assassin card carries its own colour (Shadow teal,
+		# Ninja green, Ronin gold, Ghost violet); selected = gold border.
+		var accents := {"shadow": Color(0.35, 0.95, 0.85), "ninja": Color(0.4, 0.85, 0.3), "ronin": Color(1, 0.8, 0.3), "ghost": Color(0.75, 0.55, 1.0)}
+		var accent: Color = accents.get(char_id, Color(0.4, 0.45, 0.5))
+		style.bg_color = Color(0.16, 0.32, 0.3) if is_selected else Color(accent.r * 0.32, accent.g * 0.32, accent.b * 0.32)
+		style.border_color = Color(1, 0.85, 0.4) if is_selected else accent
 		style.set_border_width_all(3)
 		style.corner_radius_top_left = 14
 		style.corner_radius_top_right = 14

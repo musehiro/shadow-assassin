@@ -1,12 +1,12 @@
 Shadow Assassin — Game Details
 ================================
 Working title (Buddhika can rename it).
-Status: REMAKE v4 READY — built 2026-11-21 (GitHub Actions run #35 / 44911053070, commit c0b73aa4, success), 50 levels, AdMob plugin installed (TEST ads), full-screen board, bottom control bar with picture icons, first-time tutorial, How to Play now a small square window — install and play!
+Status: REMAKE v5 READY — built 2026-11-21 (GitHub Actions run 44917680705, commit 2c74b598, success), 50 levels, AdMob plugin installed (TEST ads), coin counter in the HUD, stealth contact-kill rule (kill only from behind), lethal gun guards, redesigned homepage with a big PLAY button — install and play!
 GitHub repo: https://github.com/musehiro/shadow-assassin
 APK (GitHub): https://github.com/musehiro/shadow-assassin/releases/download/latest/ShadowAssassin-debug.apk
-APK (Google Drive): https://drive.google.com/uc?id=1d40btvf7jlPDlUr-fw4rZJFPBCp8y10p&export=download
-APK size: 81,957,220 bytes (~78.2 MB — bigger than v3 because the Gradle build now bundles the AdMob SDK). SHA256: a00e7088dee51ab0ba30ebfac1842be14845253e4cf964c7dac2ed0e48ad1f72
-How to play: install the APK on Android (allow "Install unknown apps" for the browser when asked) -> tap PLAY -> tap a floor tile to move, or drag your finger to draw a line and the assassin walks along the orange path line at once -> GET THE GOLD KEY first (near the guards), then reach the bright-green EXIT square (the bouncing green arrow points at it) — without the key the exit stays LOCKED -> walk into a guard to kill them with the knife (blood + cash popup), or tap a guard to shoot them with the gun once unlocked -> stay out of the WHITE flashlight cones (guards shoot on sight) -> you do NOT need to kill every guard any more: key + exit clears the level ("CLEARED!" -> "Completed" + Collect). If a guard kills you: Revive for 50 gems, or restart the level. Gems buy new assassins (Ninja 150, Ronin 300, Ghost 800).
+APK (Google Drive): https://drive.google.com/uc?id=1LJPRIYk7PLsmX-ol6--lXk-vxWYW1fAB&export=download
+APK size: 81,978,536 bytes (~78.2 MB — bigger than v3 because the Gradle build now bundles the AdMob SDK). SHA256: 95615a09decaa754587e6042d80ef2da3a2fd5e2e813f7459805758973c9575b
+How to play: install the APK on Android (allow "Install unknown apps" for the browser when asked) -> tap PLAY -> tap a floor tile to move, or drag your finger to draw a line and the assassin walks along the orange path line at once -> GET THE GOLD KEY first (near the guards), then reach the bright-green EXIT square (the bouncing green arrow points at it) — without the key the exit stays LOCKED -> SNEAK UP BEHIND a guard and walk into them to kill them with the knife (blood + cash popup); if a guard walks into you, or you walk into a guard who faces you, the guard HURTS you instead — and a guard who spots you chases and shoots, so never walk into gunfire -> tap a guard to shoot them with the gun once unlocked -> stay out of the WHITE flashlight cones (guards shoot on sight) -> you do NOT need to kill every guard any more: key + exit clears the level ("CLEARED!" -> "Completed" + Collect). The HUD now shows your COINS (gold coin icon + number) next to the gems. If a guard kills you: Revive for 50 gems, or restart the level. Gems buy new assassins (Ninja 150, Ronin 300, Ghost 800).
 This file holds the game's details, separately from everything else.
 
 THE GAME
@@ -78,10 +78,33 @@ GAMEPLAY (v3 — what changed since v2)
   later levels). Hints never block play and are never shown twice (stored in
   save data). (5) HOW TO PLAY IS NOW A SMALL SQUARE WINDOW (480x480) with a
   red X at the top-right and 5 short lines — tap the X or anywhere to close.
+- V5 (Buddhika's v4 playtest feedback, 2026-11-21 20:11): (1) COIN COUNTER
+  IN THE HUD — the gold coin icon + number of coins collected now sits in
+  the top bar next to the gems, and it climbs by 5 the moment a coin is
+  picked up (Buddhika: collected coins were nowhere to be seen). (2) THE
+  CONTACT-KILL RULE IS FIXED — before, ANY touch killed the guard for
+  free, even standing still or a guard walking up from behind. Now the
+  player kills a guard ONLY by walking into them (best from behind — a
+  stealth kill); if a guard walks into the player, or the player walks
+  into a guard who faces them, the GUARD hurts the player instead, and a
+  guard who spots the player chases and attacks — the player CAN die when
+  caught, no more free wins by standing still. (3) GUN GUARDS ARE NOW
+  LETHAL — bullets damage the player (3 hearts -> death); walking into a
+  shooting guard's gunfire gets you killed, so the knife is for stealth
+  (behind) and the gun is for distance. (4) HOMEPAGE REDESIGNED —
+  purple-to-teal gradient, gold trim, scattered coins + gems, the title in
+  gold and teal, coin/gem wallet chips, and a BIG green PLAY button with a
+  gold frame front and centre (tap it and the game starts at once);
+  How to Play is now a SMALL button in the top-right corner, Sound in the
+  top-left; ASSASSINS and the 50-level grid are still right there below.
+  The small-square How to Play window (480x480, red X, 5 short lines) is
+  unchanged.
 - Top-down 2D view, whole level on one screen; tap-to-move + drag-to-steer
   with an orange path line and tap ring.
-- Contact kills: walk into a guard to eliminate them (blood pool, cash pop,
-  +N popup, hit-stop, screen shake, kill sound).
+- Contact kills: sneak up behind a guard and walk into them to eliminate
+  them (blood pool, cash pop, +N popup, hit-stop, screen shake, kill
+  sound). A guard who walks into you, or one you meet face to face, hurts
+  you instead — and a spotted guard chases and shoots.
 - Guards shoot on sight (tracer bullets) + player health pool (3 hearts,
   brief invulnerability after a hit). Death -> Revive (50 gems, 5s countdown)
   or game over.
@@ -93,7 +116,8 @@ GAMEPLAY (v3 — what changed since v2)
 - Multikill banners: "DOUBLE KILL!", "TRIPLE KILL!", "RAMPAGE!".
 - Traps from L15: bushes to hide in, bombs, cryo mines.
 - Coins (cash) + gems to collect; gems buy 4 assassins (Shadow free,
-  Ninja 150, Ronin 300, Ghost 800). HUD: target icon + 0/N, hearts, gems.
+  Ninja 150, Ronin 300, Ghost 800). HUD: target icon + 0/N, hearts, gems,
+  COINS (gold coin icon + number), key icon.
 - LOTS of levels: 50 levels, all validated beatable (50/50, 0 problems).
   Guard count: L1=2, L2=3, L3=3, mid 4, L10=6, L50=9. Dense mazes.
 - Difficulty: the first levels are EASY; each level gets a little bit
@@ -214,3 +238,22 @@ UPDATES
   a00e7088...). Verified by download (AndroidManifest.xml + classes.dex,
   new SHA differs from v3-admob). Also uploaded to the Drive Games folder
   as ShadowAssassin-remake-v4.apk.
+- 2026-11-21: REMAKE v5 built and shipped — Buddhika played v4 and found
+  real gameplay bugs, all fixed: (1) coin counter now in the HUD (gold
+  coin icon + number, climbs +5 on pickup); (2) contact-kill rule fixed —
+  the player kills ONLY by walking into a guard from behind (stealth);
+  a guard walking into the player, or a frontal walk-in, hurts the
+  player instead, and a spotted guard chases and attacks (the player can
+  now die when caught); (3) gun guards are lethal — bullets damage the
+  player, 3 hearts -> death, so walking into gunfire kills you; (4)
+  homepage redesigned — gradient + gold trim, wallet chips, BIG PLAY
+  button front and centre, small How to Play in the top-right corner,
+  ASSASSINS + 50-level grid below. All 9 tests pass (validate_levels
+  50/50, smoke, weapons, movement/key/exit, How to Play, tutorial, plus
+  new kill-logic (a/b/c + bullet + chase), coin-HUD and homepage tests);
+  screenshots at 720x1280 and 720x1640 verified (new homepage, HUD coin
+  counter at 80 after a pickup, tutorial hint, bottom bar). GitHub Actions
+  run 44917680705 PASSED; v5 APK published (81,978,536 bytes, SHA256
+  95615a09...). Verified by download (AndroidManifest.xml + classes.dex,
+  new SHA differs from v4). Also uploaded to the Drive Games folder as
+  ShadowAssassin-remake-v5.apk.

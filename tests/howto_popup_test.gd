@@ -23,6 +23,7 @@ var _dim: Control
 
 
 func _initialize() -> void:
+	KillGuide.force_skip = true # v6: the first-play kill guide would pause the game
 	var scene: PackedScene = load("res://scenes/main.tscn")
 	main = scene.instantiate()
 	root.add_child(main)

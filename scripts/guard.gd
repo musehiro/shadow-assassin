@@ -69,6 +69,16 @@ var _grenade_timer := 3.0
 var _about_face_timer := 0.0
 var _pause_timer := 0.0
 var _look_timer := 0.0
+# v6 pathfinding (Buddhika's playtest: a chasing guard ran STRAIGHT
+# THROUGH walls). Chases/converges/returns now follow an A* path over
+# walkable tiles, re-pathed as the target moves — never through a wall.
+# The chase hunts the player's LAST SEEN position (updated only while
+# the guard can actually see him) — never the live position through a
+# wall — so hiding and breaking line of sight still escapes a chase.
+var _chase_path: Array = []
+var _chase_target_tile := Vector2i(-999, -999)
+var _repath_timer := 0.0
+var _last_seen_pos := Vector2.ZERO
 
 var _sprite: Sprite2D
 var _cone: Polygon2D
@@ -191,25 +201,37 @@ func _process(delta: float) -> void:
 				_become_alert()
 		State.SUSPECT:
 			# Converging on the noise (a kill) faster than patrol speed.
+			# v6: follow the A* path around walls — never straight through.
 			_face_point(investigate_target)
 			if position.distance_to(investigate_target) > 10.0:
-				_move_toward(investigate_target, delta, speed_px * 1.6)
+				_follow_path(delta, speed_px * 1.6, investigate_target, 0.5)
 			else:
 				_look_timer -= delta
 				if _look_timer <= 0.0:
 					state = State.RETURN
+					_chase_path.clear()
 			if can_see_player():
 				_become_alert()
 		State.ALERT:
 			_face_point(game.player.position)
-			_move_toward(game.player.position, delta, speed_px * CHASE_MULT)
-			_try_fire(delta)
+			# v6: chase along the A* path around walls. While the guard
+			# can see the player, the last-seen spot tracks him; once
+			# sight breaks, the guard hunts to that spot, looks around,
+			# and only then gives up — hiding and breaking line of sight
+			# still escapes a chase, and the guard never cuts a corner
+			# through a wall.
 			if can_see_player():
+				_last_seen_pos = game.player.position
 				_lose_timer = 0.0
-			else:
+			_follow_path(delta, speed_px * CHASE_MULT, _last_seen_pos, 0.4)
+			_try_fire(delta)
+			if not can_see_player() and _chase_path.is_empty():
+				# Arrived where the player was last seen and still cannot
+				# see him (bush, ran away): only now does the hunt end.
 				_lose_timer += delta
 				if _lose_timer > 2.5:
 					state = State.RETURN
+					_chase_path.clear()
 		State.RETURN:
 			var wp: Vector2i = _nearest_patrol_tile()
 			var target: Vector2 = game.tile_to_world(wp)
@@ -217,8 +239,10 @@ func _process(delta: float) -> void:
 				patrol_index = patrol.find(wp)
 				state = State.PATROL
 				alert_counted = false
+				_chase_path.clear()
 			else:
-				_move_toward(target, delta, speed_px)
+				# v6: return along the A* path too — never through a wall.
+				_follow_path(delta, speed_px, target, 1.0)
 	_update_cone()
 	_update_label()
 	if state == State.ALERT and not _was_alert:
@@ -233,6 +257,8 @@ func hear_noise(at: Vector2) -> void:
 	investigate_target = at
 	_look_timer = 1.2
 	state = State.SUSPECT
+	_chase_path.clear()
+	_chase_target_tile = Vector2i(-999, -999)
 
 
 func _try_fire(delta: float) -> void:
@@ -288,6 +314,9 @@ func _become_alert() -> void:
 	state = State.ALERT
 	_lose_timer = 0.0
 	_fire_timer = 0.25 # first shot comes fast — being seen is dangerous
+	_last_seen_pos = game.player.position
+	_chase_path.clear()
+	_chase_target_tile = Vector2i(-999, -999)
 	if not alert_counted:
 		alert_counted = true
 		game.register_alert()
@@ -330,6 +359,28 @@ func _move_toward(target: Vector2, delta: float, speed_px: float) -> void:
 	position += dir * step
 	facing = dir.angle()
 	_sprite.rotation = facing + PI / 2.0
+
+
+## Walk toward a world target along the A* path over walkable tiles —
+## around walls, never through them. Re-paths when the target tile
+## changes or the repath interval elapses (a moving target). If the
+## path cannot be computed, the guard stays put rather than cutting
+## straight through a wall.
+func _follow_path(delta: float, speed_px: float, target_world: Vector2, repath_interval: float) -> void:
+	var target_tile: Vector2i = game.world_to_tile(target_world)
+	_repath_timer -= delta
+	if _chase_path.is_empty() or target_tile != _chase_target_tile or _repath_timer <= 0.0:
+		var from_tile: Vector2i = game.world_to_tile(position)
+		if not game.is_walkable(from_tile):
+			from_tile = game._nearest_walkable(from_tile)
+		_chase_path = game.find_path(from_tile, target_tile)
+		_chase_target_tile = target_tile
+		_repath_timer = repath_interval
+	while _chase_path.size() > 0 and position.distance_to(_chase_path[0]) < 6.0:
+		_chase_path.remove_at(0)
+	if _chase_path.is_empty():
+		return
+	_move_toward(_chase_path[0], delta, speed_px)
 
 
 func _face_point(point: Vector2) -> void:

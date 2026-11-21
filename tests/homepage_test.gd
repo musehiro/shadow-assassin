@@ -19,6 +19,7 @@ var wait_until := 0
 
 
 func _initialize() -> void:
+	KillGuide.force_skip = true # v6: the first-play kill guide would pause the game
 	var scene: PackedScene = load("res://scenes/main.tscn")
 	main = scene.instantiate()
 	root.add_child(main)
@@ -39,6 +40,10 @@ func _release(world_pos: Vector2) -> void:
 	ev.position = world_pos
 	ev.index = 0
 	Input.parse_input_event(ev)
+
+
+func _cdist(a: Color, b: Color) -> float:
+	return sqrt((a.r - b.r) * (a.r - b.r) + (a.g - b.g) * (a.g - b.g) + (a.b - b.b) * (a.b - b.b))
 
 
 func _find_button(text: String) -> Button:
@@ -63,6 +68,18 @@ func _process(_delta: float) -> bool:
 				return false
 			if main.menu_layer == null:
 				return _fail("menu_layer is null — the homepage did not build")
+			# v6: unlock all levels so the mission-band button colours
+			# are visible, then rebuild the menu (only valid once
+			# frames are running — get_viewport() is null in _initialize).
+			main.save["unlocked"] = 49
+			main.show_menu()
+			phase = 2
+			wait_until = frame + 10
+		2:
+			if frame < wait_until:
+				return false
+			if main.menu_layer == null:
+				return _fail("menu_layer is null after rebuild")
 			# --- BIG PLAY, front and centre ---
 			var play := _find_button("▶  PLAY")
 			if play == null:
@@ -106,6 +123,22 @@ func _process(_delta: float) -> bool:
 			if grid == null or grid.get_child_count() != 50:
 				return _fail("LEVELS grid must have 50 level buttons, got %s" % str(grid.get_child_count() if grid != null else -1))
 			print("[HOME] ASSASSINS + LEVELS (50 buttons) reachable")
+			# --- v6 tagline under the title ---
+			var tag := _find_label("Think with your brain")
+			if tag == null:
+				return _fail("the 'Think with your brain' tagline is missing from the homepage")
+			print("[HOME] tagline OK: '%s'" % tag.text)
+			# --- v6: level buttons colour-coded by mission band ---
+			var band_idxs := [0, 12, 25, 38]
+			var band_cols := {}
+			for bi in band_idxs:
+				var bb := grid.get_child(bi) as Button
+				band_cols[bi] = (bb.get_theme_stylebox("normal") as StyleBoxFlat).bg_color
+			for a in range(band_idxs.size()):
+				for b in range(a + 1, band_idxs.size()):
+					if _cdist(band_cols[band_idxs[a]], band_cols[band_idxs[b]]) < 0.3:
+						return _fail("level buttons must be colour-coded by mission band (L%d %s vs L%d %s too close)" % [band_idxs[a] + 1, str(band_cols[band_idxs[a]]), band_idxs[b] + 1, str(band_cols[band_idxs[b]])])
+			print("[HOME] mission-band colours OK (L1 %s, L13 %s, L26 %s, L39 %s)" % [str(band_cols[0]), str(band_cols[12]), str(band_cols[25]), str(band_cols[38])])
 			# --- tap PLAY: the game must start at once ---
 			var c := play.get_global_rect().get_center()
 			_tap(c)

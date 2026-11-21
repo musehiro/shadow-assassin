@@ -10,6 +10,7 @@ var phase := 0
 
 
 func _initialize() -> void:
+	KillGuide.force_skip = true # v6: the first-play kill guide would pause the game
 	var levels: Array = ShadowLevels.get_levels()
 	print("[VALIDATE] levels: %d" % levels.size())
 	if levels.size() != 50:
