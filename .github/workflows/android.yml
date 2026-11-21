@@ -24,6 +24,10 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# The GITHUB_TOKEN needs write access to create/update the "latest" release.
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -261,9 +265,11 @@ jobs:
           RID=$(curl -s -H "$AUTH" "$API/releases/tags/latest" | grep -o '"id": [0-9]*' | head -1 | grep -o '[0-9]*' || true)
           if [ -z "$RID" ]; then
             echo "No latest release yet - creating it"
-            RID=$(curl -s -X POST -H "$AUTH" -H "Accept: application/vnd.github+json" \
+            RESP=$(curl -s -X POST -H "$AUTH" -H "Accept: application/vnd.github+json" \
               -d '{"tag_name":"latest","name":"Latest build","body":"Latest debug APK built from main. Install on Android to play.","draft":false,"prerelease":true}' \
-              "$API/releases" | grep -o '"id": [0-9]*' | head -1 | grep -o '[0-9]*' || true)
+              "$API/releases")
+            echo "create release response: $RESP"
+            RID=$(echo "$RESP" | grep -o '"id": [0-9]*' | head -1 | grep -o '[0-9]*' || true)
           fi
           echo "release id: $RID"
           test -n "$RID" || { echo "ERROR: could not find or create the latest release"; exit 1; }
