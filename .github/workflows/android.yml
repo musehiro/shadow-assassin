@@ -44,12 +44,14 @@ jobs:
       - name: Install build tools
         run: |
           set -e
-          # The godot-ci container has no curl/unzip, and several steps below
-          # need them (templates download, Android SDK download, release upload).
-          if ! command -v curl >/dev/null 2>&1 || ! command -v unzip >/dev/null 2>&1; then
-            apt-get update -qq && apt-get install -y -qq curl unzip
+          # The godot-ci container has no curl/unzip/python3, and several steps
+          # below need them (templates download, Android SDK download, editor
+          # settings, binary normalize, release upload).
+          if ! command -v curl >/dev/null 2>&1 || ! command -v unzip >/dev/null 2>&1 || ! command -v python3 >/dev/null 2>&1; then
+            apt-get update -qq && apt-get install -y -qq curl unzip python3
           fi
           curl --version | head -1
+          python3 --version
 
       - name: Install Godot 4.3 export templates
         run: |
