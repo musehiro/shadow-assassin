@@ -1,0 +1,69 @@
+name: Android APK
+
+# Builds the Shadow Assassin debug APK on every push to main and publishes it
+# to the "latest" release, so it can be downloaded without a GitHub login:
+# https://github.com/musehiro/shadow-assassin/releases/download/latest/ShadowAssassin-debug.apk
+#
+# Only `run:` steps are used (no JavaScript actions): the job runs inside the
+# godot-ci container, which may not have Node.js.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.3
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Check out source
+        run: |
+          git clone https://github.com/musehiro/shadow-assassin.git .
+          git checkout ${{ github.sha }}
+
+      - name: Import project
+        run: godot --headless --import
+
+      - name: Prepare debug keystore
+        run: |
+          mkdir -p ~/.android
+          if [ ! -f ~/.android/debug.keystore ]; then
+            keytool -genkey -v -keystore ~/.android/debug.keystore \
+              -storepass android -alias androiddebugkey -keypass android \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+          fi
+
+      - name: Export debug APK
+        run: |
+          mkdir -p build
+          godot --headless --export-debug "Android" build/ShadowAssassin-debug.apk
+          ls -lh build/
+          sha256sum build/ShadowAssassin-debug.apk
+
+      - name: Publish APK to "latest" release
+        run: |
+          REPO="musehiro/shadow-assassin"
+          API="https://api.github.com/repos/$REPO"
+          AUTH="Authorization: Bearer $GITHUB_TOKEN"
+          RID=$(curl -s -H "$AUTH" "$API/releases/tags/latest" | grep -o '"id": [0-9]*' | head -1 | grep -o '[0-9]*')
+          if [ -z "$RID" ]; then
+            RID=$(curl -s -X POST -H "$AUTH" -H "Accept: application/vnd.github+json" \
+              -d '{"tag_name":"latest","name":"Latest build","body":"Latest debug APK built from main. Install on Android to play.","draft":false,"prerelease":true}' \
+              "$API/releases" | grep -o '"id": [0-9]*' | head -1 | grep -o '[0-9]*')
+          fi
+          echo "release id: $RID"
+          AID=$(curl -s -H "$AUTH" "$API/releases/$RID/assets" | tr ',' '\n' | grep -B2 '"name": "ShadowAssassin-debug.apk"' | grep -o '"id": [0-9]*' | head -1 | grep -o '[0-9]*')
+          if [ -n "$AID" ]; then
+            echo "deleting old asset $AID"
+            curl -s -X DELETE -H "$AUTH" "$API/releases/assets/$AID"
+          fi
+          curl -s -X POST -H "$AUTH" -H "Content-Type: application/vnd.android.package-archive" \
+            --data-binary @build/ShadowAssassin-debug.apk \
+            "https://uploads.github.com/repos/$REPO/releases/$RID/assets?name=ShadowAssassin-debug.apk"
+          echo "APK published:"
+          echo "https://github.com/$REPO/releases/download/latest/ShadowAssassin-debug.apk"
