@@ -108,11 +108,35 @@ func _process(_delta: float) -> bool:
 				return _fail("after Collect expected level 2 (index 1), got %s" % str(game.level_index if game != null else "null"))
 			if frame < wait_until:
 				return false
-			# Put the player in front of guard 0, in its cone, and force ALERT.
+			# Put the player on a walkable tile with a CLEAR line of sight
+			# to guard 0 (v4 mazes are denser: a fixed 120px spot in front
+			# of the guard can land inside a wall, and then the guard
+			# can never see the player). The guard turns to face the
+			# player once alerted, so any LOS-clear tile in range works.
 			var g = game.guards[0]
-			game.player.position = g.position + Vector2(cos(g.facing), sin(g.facing)) * 120.0
+			var placed := false
+			var g_tile: Vector2i = game.world_to_tile(g.position)
+			var seen := {g_tile: 0}
+			var queue: Array = [g_tile]
+			while not queue.is_empty() and not placed:
+				var cur: Vector2i = queue.pop_front()
+				for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+					var nb: Vector2i = cur + d
+					if seen.has(nb) or not game.is_walkable(nb):
+						continue
+					seen[nb] = seen[cur] + 1
+					queue.append(nb)
+					if seen[nb] >= 1 and seen[nb] <= 5:
+						var cand: Vector2 = game.tile_to_world(nb)
+						if cand.distance_to(g.position) <= g.vision_range * 0.8 and game.has_los(g.position, cand):
+							game.player.position = cand
+							placed = true
+							break
+			if not placed:
+				return _fail("no LOS-clear tile near guard 0 to place the player on")
 			game.player.stop()
 			game.debug_force_alert(0)
+			print("[SMOKE] player placed at %s, %dpx from guard 0, ALERT forced" % [str(game.player.position), int(game.player.position.distance_to(g.position))])
 			phase = 6
 			wait_until = frame + 600
 		6:

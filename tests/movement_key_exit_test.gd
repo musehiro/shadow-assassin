@@ -12,7 +12,7 @@ extends SceneTree
 ##   2. A simulated drag (touch press + ScreenDrag events) steers the
 ##      player along the drawn line to the destination.
 ##   3. A simulated mouse click (desktop path) also moves the player.
-##   4. Taps on the HUD strip and on the weapon dock do NOT move the player.
+##   4. Taps on the HUD strip and on the bottom control bar do NOT move the player.
 ##   5. Key + exit win condition: reaching the exit WITHOUT the key does
 ##      NOT win; collecting the key then reaching the exit DOES win.
 ##   6. Level data: key 1-3 tiles from a patrol route, exit far from the
@@ -160,26 +160,25 @@ func _process(_delta: float) -> bool:
 			var game = main.game
 			if not game.player.path.is_empty():
 				return _fail("tap on the HUD strip moved the player (path=%d)" % game.player.path.size())
-			# --- weapon dock tap must NOT move the player ---
-			# Tap the dock's empty bottom strip (inside the dock rect, but
-			# below the weapon buttons — tapping a button would open the
-			# shop and pause the game, which is correct behaviour, not
-			# movement).
-			var dock_pos := Vector2(game.origin.x + game.COLS * game.TILE - 34.0,
-				game.origin.y + game.ROWS * game.TILE * 0.5 + 93.0)
-			_tap(dock_pos)
-			_release(dock_pos)
+			# --- bottom control bar tap must NOT move the player ---
+			# Tap the bar's empty left gap (inside the bar rect, but
+			# left of the centred buttons — tapping a button would
+			# switch weapons / open the shop / pause, which is correct
+			# behaviour, not movement).
+			var bar_pos := Vector2(60.0, game._view_size.y - ShadowGame.BAR_H * 0.5)
+			_tap(bar_pos)
+			_release(bar_pos)
 			phase = 3
 			wait_until = frame + 12
 		3:
 			var game = main.game
 			if not game.player.path.is_empty():
-				return _fail("tap on the weapon dock moved the player (path=%d)" % game.player.path.size())
+				return _fail("tap on the bottom bar moved the player (path=%d)" % game.player.path.size())
 			if game._weapon_ui._shop_layer.visible:
-				return _fail("dock tap opened the shop (tapped a button, not the empty strip)")
+				return _fail("bar tap opened the shop (tapped a button, not the empty gap)")
 			if game.state != game.State.PLAYING:
 				return _fail("game left PLAYING state before the touch test (state=%d)" % game.state)
-			print("[MOVEKEY] HUD + dock taps correctly ignored")
+			print("[MOVEKEY] HUD + bottom-bar taps correctly ignored")
 			# --- TOUCH: tap a far floor tile; player must move AT ONCE ---
 			_freeze_guards(game)
 			_dest = _far_walkable_tile(game, 4)

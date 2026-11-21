@@ -23,15 +23,16 @@ const KNIFE_ID := "knife"
 const GUN_ID := "gun"
 
 const GUN_PRICE := 500 # coins
-const GUN_RANGE := 320.0 # px (~5 tiles)
+const GUN_RANGE := 320.0 # px (~5 tiles at tile 64; the game checks 5.0 * tile live)
 const GUN_COOLDOWN := 0.9 # seconds between shots
 const GUN_BULLET_SPEED := 700.0
-const KNIFE_RANGE := 48.0 # == ShadowGame.ELIM_DIST (contact kill)
+const KNIFE_RANGE := 48.0 # 0.75 tiles at tile 64 (contact kill)
 
 const WEAPONS := [
-	{"id": KNIFE_ID, "name": "Knife", "icon": "🔪",
+	{"id": KNIFE_ID, "name": "Knife", "icon_tex": "res://art/icon_knife.png",
 		"desc": "Silent • close range • instant kill", "price": 0},
-	{"id": GUN_ID, "name": "Gun", "icon": "🔫",
+	{"id": GUN_ID, "name": "Gun", "icon_tex": "res://art/icon_gun.png",
+		"icon_locked_tex": "res://art/icon_gun_locked.png",
 		"desc": "Loud • 5 tiles • 0.9s between shots", "price": GUN_PRICE},
 ]
 

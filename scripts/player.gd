@@ -24,7 +24,7 @@ func setup(p_game: ShadowGame, start_tile: Vector2i) -> void:
 	z_index = 10 # above vision cones (z 5) so the assassin always reads clearly
 	_sprite = Sprite2D.new()
 	_sprite.texture = load("res://art/player.png")
-	_sprite.scale = Vector2(0.62, 0.62)
+	_sprite.scale = Vector2(0.62, 0.62) * (game.tile / 64.0)
 	add_child(_sprite)
 
 
@@ -57,7 +57,7 @@ func _process(delta: float) -> void:
 		var target: Vector2 = path[0]
 		var to: Vector2 = target - position
 		var dist := to.length()
-		var speed: float = BASE_SPEED * speed_mult
+		var speed: float = BASE_SPEED * speed_mult * (game.tile / 64.0)
 		var step: float = minf(speed * delta, dist)
 		if dist > 0.5:
 			var dir := to / dist

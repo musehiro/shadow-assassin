@@ -1,12 +1,12 @@
 class_name WeaponUI
 extends CanvasLayer
-## Side weapon dock + gun unlock shop (Shadow Assassin v3).
+## Bottom control bar + gun unlock shop (Shadow Assassin v4).
 ##
-## A slim vertical dock sits on the RIGHT edge of the screen, over the
-## board's outer wall column (column 10 is walls on every level), so it
-## never covers playable floor or the top HUD bar. Two tappable weapon
-## slots: knife (free, always owned) and gun (locked until unlocked).
-## Locked weapons are greyed out with a lock + price; tapping one opens
+## A row of three picture buttons sits in a bar along the BOTTOM of the
+## screen, in the space below the board: Pause | Knife | Gun. The icons
+## are real drawn pictures (art/icon_*.png) — never emoji, which do not
+## render on some phones. A locked weapon shows the locked picture
+## (greyed gun + padlock) and the price under the name; tapping it opens
 ## the unlock shop. The active weapon gets a gold border. Tapping an
 ## owned weapon switches it mid-level.
 ##
@@ -19,12 +19,14 @@ signal unlock_with_coins(weapon_id: String)
 signal unlock_with_ad(weapon_id: String)
 signal shop_opened
 signal shop_closed
+signal pause_pressed
 
-const DOCK_W := 60.0
+const SLOT_BTN := 84.0
 
 var game: ShadowGame
 
-var _dock: PanelContainer
+var _bar: PanelContainer
+var _pause_button: Button
 var _slot_buttons := {} # weapon_id -> Button
 var _slot_labels := {} # weapon_id -> Label
 var _note_label: Label
@@ -36,57 +38,53 @@ var _shop_buy_btn: Button
 var _shop_ad_btn: Button
 
 
+static func _load_icon(path: String) -> Texture2D:
+	if ResourceLoader.exists(path):
+		return load(path)
+	return null
+
+
 func setup(p_game: ShadowGame) -> void:
 	game = p_game
 	layer = 12
-	# Dock over the right wall column: board right edge is
-	# origin.x + COLS * TILE; the dock sits inside the last (wall) column.
-	var dock_x: float = game.origin.x + ShadowGame.COLS * ShadowGame.TILE - DOCK_W - 4.0
-	var dock_y: float = game.origin.y + ShadowGame.ROWS * ShadowGame.TILE * 0.5 - 105.0
-	_dock = PanelContainer.new()
-	_dock.position = Vector2(dock_x, dock_y)
-	_dock.size = Vector2(DOCK_W, 210)
+	var view: Vector2 = game._view_size
+	_bar = PanelContainer.new()
+	_bar.position = Vector2(0, view.y - ShadowGame.BAR_H)
+	_bar.size = Vector2(view.x, ShadowGame.BAR_H)
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.05, 0.06, 0.07, 0.55)
-	style.border_color = Color(0.5, 0.55, 0.6, 0.6)
-	style.set_border_width_all(2)
-	style.corner_radius_top_left = 12
-	style.corner_radius_top_right = 12
-	style.corner_radius_bottom_left = 12
-	style.corner_radius_bottom_right = 12
-	style.content_margin_left = 4
-	style.content_margin_right = 4
-	style.content_margin_top = 8
+	style.bg_color = Color(0.04, 0.05, 0.06, 0.95)
+	style.border_color = Color(1, 0.85, 0.4, 0.45)
+	style.border_width_top = 2
+	style.content_margin_top = 10
 	style.content_margin_bottom = 8
-	_dock.add_theme_stylebox_override("panel", style)
-	add_child(_dock)
-	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 6)
-	_dock.add_child(vbox)
+	_bar.add_theme_stylebox_override("panel", style)
+	add_child(_bar)
+	var hbox := HBoxContainer.new()
+	hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	hbox.add_theme_constant_override("separation", 44)
+	_bar.add_child(hbox)
+	# Pause slot (picture icon, left of the weapons).
+	var pause_slot := _make_slot(hbox, "Pause")
+	_pause_button = pause_slot["btn"]
+	_pause_button.icon = _load_icon("res://art/icon_pause.png")
+	if _pause_button.icon == null:
+		_pause_button.text = "II"
+	_style_slot_button(_pause_button, Color(0.11, 0.55, 0.5))
+	_pause_button.pressed.connect(func() -> void: pause_pressed.emit())
+	# Weapon slots.
 	for w in ShadowWeapons.WEAPONS:
 		var wid := String(w["id"])
-		var slot := VBoxContainer.new()
-		slot.add_theme_constant_override("separation", 2)
-		vbox.add_child(slot)
-		var btn := Button.new()
-		btn.text = String(w["icon"])
-		btn.custom_minimum_size = Vector2(52, 52)
-		btn.add_theme_font_size_override("font_size", 30)
-		btn.pressed.connect(_on_slot_pressed.bind(wid))
-		slot.add_child(btn)
-		_slot_buttons[wid] = btn
-		var lbl := Label.new()
-		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		lbl.add_theme_font_size_override("font_size", 12)
-		lbl.add_theme_color_override("font_color", Color(1, 1, 1))
-		slot.add_child(lbl)
-		_slot_labels[wid] = lbl
-	# Fading note under the dock ("Gun unlocked!", "No ad right now"...).
+		var slot := _make_slot(hbox, String(w["name"]))
+		_slot_buttons[wid] = slot["btn"]
+		_slot_labels[wid] = slot["lbl"]
+		slot["btn"].pressed.connect(_on_slot_pressed.bind(wid))
+	# Fading note above the bar ("Gun unlocked!", "No ad right now"...).
 	_note_label = Label.new()
-	_note_label.position = Vector2(dock_x - 140.0, dock_y + 220.0)
-	_note_label.size = Vector2(200, 40)
-	_note_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_note_label.add_theme_font_size_override("font_size", 18)
+	_note_label.position = Vector2(view.x * 0.5 - 150.0, view.y - ShadowGame.BAR_H - 44.0)
+	_note_label.size = Vector2(300, 40)
+	_note_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_note_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_note_label.add_theme_font_size_override("font_size", 20)
 	_note_label.add_theme_color_override("font_color", Color(1, 0.85, 0.4))
 	_note_label.add_theme_color_override("font_outline_color", Color(0, 0, 0))
 	_note_label.add_theme_constant_override("outline_size", 5)
@@ -94,6 +92,58 @@ func setup(p_game: ShadowGame) -> void:
 	add_child(_note_label)
 	_build_shop()
 	refresh()
+
+
+func _make_slot(parent: Control, label_text: String) -> Dictionary:
+	var slot := VBoxContainer.new()
+	slot.add_theme_constant_override("separation", 4)
+	parent.add_child(slot)
+	var btn := Button.new()
+	btn.custom_minimum_size = Vector2(SLOT_BTN, SLOT_BTN)
+	btn.expand_icon = true
+	slot.add_child(btn)
+	var lbl := Label.new()
+	lbl.text = label_text
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	lbl.add_theme_font_size_override("font_size", 16)
+	lbl.add_theme_color_override("font_color", Color(1, 1, 1))
+	slot.add_child(lbl)
+	return {"btn": btn, "lbl": lbl}
+
+
+func _style_slot_button(b: Button, bg: Color) -> void:
+	var normal := StyleBoxFlat.new()
+	normal.bg_color = bg
+	normal.corner_radius_top_left = 12
+	normal.corner_radius_top_right = 12
+	normal.corner_radius_bottom_left = 12
+	normal.corner_radius_bottom_right = 12
+	normal.content_margin_left = 10
+	normal.content_margin_right = 10
+	b.add_theme_stylebox_override("normal", normal)
+	var hover := normal.duplicate()
+	hover.bg_color = bg.lightened(0.15)
+	b.add_theme_stylebox_override("hover", hover)
+	var pressed := normal.duplicate()
+	pressed.bg_color = bg.darkened(0.2)
+	b.add_theme_stylebox_override("pressed", pressed)
+	b.add_theme_color_override("font_color", Color(1, 1, 1))
+
+
+## Screen rects, for the tutorial coach marks and the input guard.
+func bar_rect() -> Rect2:
+	return Rect2(0, game._view_size.y - ShadowGame.BAR_H, game._view_size.x, ShadowGame.BAR_H)
+
+
+func pause_rect() -> Rect2:
+	return _pause_button.get_global_rect()
+
+
+func slot_rect(weapon_id: String) -> Rect2:
+	if _slot_buttons.has(weapon_id):
+		return (_slot_buttons[weapon_id] as Button).get_global_rect()
+	return Rect2()
 
 
 ## Rebuild slot visuals from the current save (ownership, active weapon).
@@ -132,11 +182,22 @@ func refresh() -> void:
 		pressed.bg_color = normal.bg_color.darkened(0.2)
 		btn.add_theme_stylebox_override("pressed", pressed)
 		btn.modulate = Color(1, 1, 1) if owned else Color(0.55, 0.55, 0.55)
-		btn.text = String(w["icon"]) if owned else "🔒"
+		# Picture icon (never emoji): a locked weapon shows the locked
+		# picture (greyed gun + padlock drawn on it).
+		var tex_path: String = String(w.get("icon_tex", ""))
+		if not owned and w.has("icon_locked_tex"):
+			tex_path = String(w["icon_locked_tex"])
+		var tex := _load_icon(tex_path)
+		if tex != null:
+			btn.icon = tex
+			btn.text = ""
+		else:
+			btn.icon = null
+			btn.text = String(w["name"])
 		if owned:
 			lbl.text = String(w["name"])
 		else:
-			lbl.text = "%s\n🔒 %d coins" % [String(w["name"]), ShadowWeapons.price_of(wid)]
+			lbl.text = "%s\n%d coins" % [String(w["name"]), ShadowWeapons.price_of(wid)]
 	if _shop_layer.visible:
 		_refresh_shop()
 

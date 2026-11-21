@@ -14,11 +14,18 @@ signal next_level
 
 enum State { PLAYING, WON, LOST, PAUSED }
 
-const TILE := 64
 const COLS := 11
-const ROWS := 17
-const ELIM_DIST := 48.0
-const PICKUP_DIST := 28.0
+const ROWS := 20
+# Chrome: top HUD strip + bottom control bar (Pause / Knife / Gun).
+const HUD_H := 108.0
+const BAR_H := 156.0
+# Tile size is computed from the real viewport in _build_board() so the
+# board fills tall phones (720x1640) with no black band: 65px there,
+# ~50px on a 720x1280 screen. All gameplay distances derive from it.
+var tile := 64.0
+var elim_dist := 48.0 # 0.75 tiles — contact-kill reach
+var pickup_dist := 28.0 # 0.44 tiles — coin/gem pickup reach
+var _view_size := Vector2(720, 1280)
 const REVIVE_COST := 50
 const MULTIKILL_WINDOW := 2.5
 
@@ -112,6 +119,7 @@ var _revive_button: Button
 var _start_tile := Vector2i(1, 1)
 # v3 weapons + ads
 var _weapon_ui: WeaponUI
+var _tutorial: TutorialMarks
 var _gun_cooldown := 0.0
 var _gun_target: Guard = null
 var _coins_doubled := false
@@ -148,6 +156,7 @@ func setup(p_level_index: int, p_save: Dictionary, p_sfx: Sfx) -> void:
 	_build_board()
 	_build_hud()
 	_build_weapon_ui()
+	_build_tutorial()
 	_connect_admob_signals()
 	_coins_doubled = false
 	_gun_cooldown = 0.0
@@ -169,11 +178,11 @@ static func _theme_for_level(idx: int) -> String:
 
 
 func tile_to_world(t: Vector2i) -> Vector2:
-	return origin + Vector2(t) * TILE + Vector2(TILE, TILE) * 0.5
+	return origin + Vector2(t) * tile + Vector2(tile, tile) * 0.5
 
 
 func world_to_tile(w: Vector2) -> Vector2i:
-	return Vector2i(((w - origin) / TILE).floor())
+	return Vector2i(((w - origin) / tile).floor())
 
 
 func is_walkable(t: Vector2i) -> bool:
@@ -204,7 +213,7 @@ func is_player_hidden() -> bool:
 		return false
 	# A guard standing right next to the bush still spots you.
 	for g in guards:
-		if g.alive and g.position.distance_to(player.position) < TILE * 1.1:
+		if g.alive and g.position.distance_to(player.position) < tile * 1.1:
 			return false
 	return true
 
@@ -249,7 +258,15 @@ func noise_at(at: Vector2, radius: float = 280.0) -> void:
 
 func _build_board() -> void:
 	var view: Vector2 = get_viewport_rect().size
-	origin = Vector2((view.x - COLS * TILE) * 0.5, 150.0)
+	_view_size = view
+	# Adaptive tile: fill the width, and the height between the HUD
+	# strip and the bottom control bar. 720x1640 -> 65px tiles, board
+	# 715x1300; 720x1280 -> 50px tiles, board 550x1000.
+	tile = floor(minf(view.x / COLS, (view.y - HUD_H - BAR_H) / ROWS))
+	tile = clampf(tile, 40.0, 66.0)
+	elim_dist = tile * 0.75
+	pickup_dist = tile * 0.44
+	origin = Vector2((view.x - COLS * tile) * 0.5, HUD_H + ((view.y - HUD_H - BAR_H) - ROWS * tile) * 0.5)
 	var th: Dictionary = THEMES[theme]
 	# backdrop — mouse_filter IGNORE: a full-screen Control with the
 	# default STOP filter swallows every tap before _unhandled_input
@@ -269,12 +286,13 @@ func _build_board() -> void:
 	add_child(_fx)
 	# orange path line + destination arrow + tap ring (world space, above cones)
 	_path_line = Line2D.new()
-	_path_line.width = 12.0
+	_path_line.width = tile * 0.19
 	_path_line.default_color = Color(1, 0.55, 0.1, 0.9)
 	_path_line.z_index = 15
 	_board.add_child(_path_line)
 	_path_arrow = Polygon2D.new()
-	_path_arrow.polygon = PackedVector2Array([Vector2(0, -16), Vector2(12, 10), Vector2(-12, 10)])
+	var _ps := tile / 64.0
+	_path_arrow.polygon = PackedVector2Array([Vector2(0, -16) * _ps, Vector2(12, 10) * _ps, Vector2(-12, 10) * _ps])
 	_path_arrow.color = Color(1, 0.55, 0.1, 0.95)
 	_path_arrow.z_index = 15
 	_path_arrow.visible = false
@@ -395,7 +413,7 @@ func _add_sprite(parent: Node, tex_path: String, wpos: Vector2, p_scale: float) 
 	if ResourceLoader.exists(tex_path):
 		s.texture = load(tex_path)
 	s.position = wpos
-	s.scale = Vector2(0.5 * p_scale, 0.5 * p_scale)
+	s.scale = Vector2(0.5 * p_scale, 0.5 * p_scale) * (tile / 64.0)
 	parent.add_child(s)
 	return s
 
@@ -424,7 +442,7 @@ func _add_exit(t: Vector2i) -> void:
 	var glow_pts := PackedVector2Array()
 	for i in range(24):
 		var a: float = TAU * float(i) / 24.0
-		glow_pts.append(Vector2(cos(a), sin(a)) * 40.0)
+		glow_pts.append(Vector2(cos(a), sin(a)) * tile * 0.625)
 	_exit_glow = Polygon2D.new()
 	_exit_glow.polygon = glow_pts
 	_exit_glow.color = Color(0.2, 1.0, 0.35, 0.35)
@@ -434,10 +452,11 @@ func _add_exit(t: Vector2i) -> void:
 	# Big bouncing arrow above the exit, pointing down at it — the
 	# player always knows where to go.
 	_exit_arrow = Polygon2D.new()
+	var _es := tile / 64.0
 	_exit_arrow.polygon = PackedVector2Array([
-		Vector2(-22, -14), Vector2(22, -14), Vector2(0, 16)])
+		Vector2(-22, -14) * _es, Vector2(22, -14) * _es, Vector2(0, 16) * _es])
 	_exit_arrow.color = Color(0.25, 1.0, 0.4, 0.95)
-	_exit_arrow.position = tile_to_world(t) + Vector2(0, -58)
+	_exit_arrow.position = tile_to_world(t) + Vector2(0, -tile * 0.9)
 	_exit_arrow.z_index = 15
 	_board.add_child(_exit_arrow)
 
@@ -595,9 +614,7 @@ func _build_hud() -> void:
 	_key_icon.scale = Vector2(0.34, 0.34)
 	_key_icon.modulate = Color(0.45, 0.45, 0.45, 0.9)
 	_hud.add_child(_key_icon)
-	var pause_btn := _make_button("II", Vector2(640, 16), Vector2(64, 64), 26)
-	pause_btn.pressed.connect(_on_pause_pressed)
-	_hud.add_child(pause_btn)
+	# Pause lives in the bottom control bar now (WeaponUI, picture icon).
 	# Multikill / announcement banner, centre screen.
 	_banner_label = Label.new()
 	_banner_label.position = Vector2(0, 420)
@@ -742,8 +759,8 @@ func _input(event: InputEvent) -> void:
 		return
 	if pos.y < 110.0:
 		return # top HUD bar — buttons own this strip
-	if _in_weapon_dock(pos):
-		return # weapon dock buttons own this strip
+	if _in_bottom_bar(pos):
+		return # bottom control bar buttons own this strip
 	if tapped:
 		_issue_move(pos)
 	elif dragging:
@@ -753,12 +770,9 @@ func _input(event: InputEvent) -> void:
 		_issue_move(pos, true)
 
 
-func _in_weapon_dock(pos: Vector2) -> bool:
-	# Same rect WeaponUI docks into (right edge, over the wall column).
-	var dock := Rect2(
-		Vector2(origin.x + COLS * TILE - 64.0, origin.y + ROWS * TILE * 0.5 - 105.0),
-		Vector2(60.0, 210.0))
-	return dock.has_point(pos)
+func _in_bottom_bar(pos: Vector2) -> bool:
+	# The bottom control bar (Pause / Knife / Gun) owns this strip.
+	return pos.y >= _view_size.y - BAR_H
 
 
 func _issue_move(pos: Vector2, is_drag: bool = false) -> void:
@@ -766,10 +780,10 @@ func _issue_move(pos: Vector2, is_drag: bool = false) -> void:
 		if _drag_repath > 0.0:
 			return
 		_drag_repath = 0.08
-	var tile := world_to_tile(pos)
+	var dest_tile := world_to_tile(pos)
 	# Forgiving taps: a tap within a full tile of a guard targets the guard.
 	var best_guard: Guard = null
-	var best_d := TILE * 1.0
+	var best_d := tile * 1.0
 	for g in guards:
 		if g.alive:
 			var d: float = g.position.distance_to(pos)
@@ -779,7 +793,7 @@ func _issue_move(pos: Vector2, is_drag: bool = false) -> void:
 	if best_guard != null and ShadowWeapons.active_weapon(save) == ShadowWeapons.GUN_ID:
 		# Gun equipped: tapping a guard shoots instead of walking to him.
 		var gd: float = player.position.distance_to(best_guard.position)
-		if gd <= ShadowWeapons.GUN_RANGE and has_los(player.position, best_guard.position):
+		if gd <= 5.0 * tile and has_los(player.position, best_guard.position):
 			if _gun_cooldown <= 0.0:
 				_fire_gun(best_guard)
 			else:
@@ -793,17 +807,19 @@ func _issue_move(pos: Vector2, is_drag: bool = false) -> void:
 		_tap_ring_t = 0.0
 		_tap_ring.visible = true
 		player.set_path(find_path(world_to_tile(player.position), world_to_tile(best_guard.position)))
+		_tutorial.on_player_moved()
 		sfx.play("click")
 		return
 	_gun_target = null
 	if best_guard != null:
-		tile = world_to_tile(best_guard.position)
+		dest_tile = world_to_tile(best_guard.position)
 		_tap_ring_pos = best_guard.position
 	else:
-		_tap_ring_pos = tile_to_world(tile)
+		_tap_ring_pos = tile_to_world(dest_tile)
 	_tap_ring_t = 0.0
 	_tap_ring.visible = true
-	player.set_path(find_path(world_to_tile(player.position), tile))
+	player.set_path(find_path(world_to_tile(player.position), dest_tile))
+	_tutorial.on_player_moved()
 	sfx.play("click")
 
 
@@ -822,6 +838,7 @@ func _process(delta: float) -> void:
 	if state != State.PLAYING:
 		return
 	_time += delta
+	_tutorial.tick()
 	if _invuln > 0.0:
 		_invuln -= delta
 	if _gun_cooldown > 0.0:
@@ -831,7 +848,7 @@ func _process(delta: float) -> void:
 		if not is_instance_valid(_gun_target) or not _gun_target.alive:
 			_gun_target = null
 		elif ShadowWeapons.active_weapon(save) == ShadowWeapons.GUN_ID and _gun_cooldown <= 0.0:
-			if player.position.distance_to(_gun_target.position) <= ShadowWeapons.GUN_RANGE and has_los(player.position, _gun_target.position):
+			if player.position.distance_to(_gun_target.position) <= 5.0 * tile and has_los(player.position, _gun_target.position):
 				_fire_gun(_gun_target)
 				_gun_target = null
 	if _kill_chain_timer > 0.0:
@@ -850,7 +867,7 @@ func _process(delta: float) -> void:
 			continue
 		var node: Sprite2D = c["node"]
 		node.position.y = tile_to_world(c["tile"]).y + sin(_time * 3.0 + float(c["phase"])) * 4.0
-		if player.position.distance_to(tile_to_world(c["tile"])) < PICKUP_DIST:
+		if player.position.distance_to(tile_to_world(c["tile"])) < pickup_dist:
 			c["taken"] = true
 			node.visible = false
 			coins_collected += int(c["value"])
@@ -870,7 +887,7 @@ func _process(delta: float) -> void:
 	for g in guards.duplicate():
 		if not g.alive:
 			continue
-		if player.position.distance_to(g.position) < ELIM_DIST:
+		if player.position.distance_to(g.position) < elim_dist:
 			if not knife_active:
 				continue
 			if not g.can_be_killed_from(player.position):
@@ -879,7 +896,7 @@ func _process(delta: float) -> void:
 					_spawn_popup(g.position + Vector2(0, -60), "BLOCKED!", Color(0.6, 0.8, 1.0))
 					# bounce the assassin back off the shield
 					var away: Vector2 = (player.position - g.position).normalized()
-					player.position += away * 30.0
+					player.position += away * tile * 0.47
 					player.stop()
 					sfx.play("click")
 				continue
@@ -897,8 +914,8 @@ func _process(delta: float) -> void:
 				continue
 			var d: Vector2 = b.position - a.position
 			var dist := d.length()
-			if dist > 0.5 and dist < 44.0:
-				var push: Vector2 = d.normalized() * (44.0 - dist) * 0.5
+			if dist > 0.5 and dist < tile * 0.69:
+				var push: Vector2 = d.normalized() * (tile * 0.69 - dist) * 0.5
 				a.position -= push
 				b.position += push
 	# orange path line / arrow / tap ring
@@ -908,16 +925,17 @@ func _process(delta: float) -> void:
 	# KEY pickup (bobbing key, collected on touch).
 	if _key_node != null and not key_collected:
 		_key_node.position.y = tile_to_world(key_tile).y + sin(_time * 3.0) * 4.0
-		if player.position.distance_to(tile_to_world(key_tile)) < 40.0:
+		if player.position.distance_to(tile_to_world(key_tile)) < tile * 0.62:
 			key_collected = true
 			_key_node.visible = false
+			_tutorial.on_key_collected()
 			_spawn_poof(tile_to_world(key_tile), 0.6)
 			sfx.play("gem")
 			_show_banner("KEY COLLECTED!", Color(1, 0.85, 0.25))
 			_update_hud()
 	# EXIT arrow bob + pulse so the way out always reads.
 	if _exit_arrow != null:
-		_exit_arrow.position = tile_to_world(exit_tile) + Vector2(0, -58 + sin(_time * 3.0) * 5.0)
+		_exit_arrow.position = tile_to_world(exit_tile) + Vector2(0, -tile * 0.9 + sin(_time * 3.0) * tile * 0.08)
 		_exit_arrow.modulate.a = 0.75 + sin(_time * 4.0) * 0.25
 	if _exit_glow != null:
 		var gs: float = 1.0 + sin(_time * 2.0) * 0.08
@@ -926,7 +944,7 @@ func _process(delta: float) -> void:
 	# is how you get to the key safely — it is no longer the win
 	# trigger. Reaching the exit without the key only reminds you
 	# (throttled so it cannot spam).
-	if exit_tile.x >= 0 and player.position.distance_to(tile_to_world(exit_tile)) < 34.0:
+	if exit_tile.x >= 0 and player.position.distance_to(tile_to_world(exit_tile)) < tile * 0.53:
 		if key_collected:
 			_start_win()
 		elif _exit_locked_cd <= 0.0:
@@ -954,7 +972,7 @@ func _update_path_visuals(delta: float) -> void:
 			_path_arrow.rotation = dir.angle() + PI / 2.0
 	if _tap_ring.visible:
 		_tap_ring_t += delta
-		var r: float = 26.0 + sin(_tap_ring_t * 6.0) * 4.0
+		var r: float = tile * 0.4 + sin(_tap_ring_t * 6.0) * tile * 0.06
 		var pts := PackedVector2Array()
 		for i in range(24):
 			var a: float = TAU * float(i) / 24.0
@@ -1042,10 +1060,10 @@ func _update_bullets(delta: float) -> void:
 			continue
 		b["pos"] = (b["pos"] as Vector2) + (b["dir"] as Vector2) * float(b["speed"]) * delta
 		node.position = b["pos"]
-		var tile := world_to_tile(b["pos"])
+		var btile := world_to_tile(b["pos"])
 		if is_blocking_world(b["pos"]):
-			if bool(b["destroy_crates"]) and crates.has(tile):
-				destroy_crate(tile)
+			if bool(b["destroy_crates"]) and crates.has(btile):
+				destroy_crate(btile)
 			_spawn_poof(b["pos"], 0.3)
 			_remove_bullet(b)
 			continue
@@ -1056,7 +1074,7 @@ func _update_bullets(delta: float) -> void:
 			for g in guards.duplicate():
 				if not g.alive:
 					continue
-				if g.position.distance_to(b["pos"]) < 30.0:
+				if g.position.distance_to(b["pos"]) < tile * 0.47:
 					if not g.can_be_killed_from(player.position):
 						_spawn_popup(g.position + Vector2(0, -60), "BLOCKED!", Color(0.6, 0.8, 1.0))
 						sfx.play("click")
@@ -1065,7 +1083,7 @@ func _update_bullets(delta: float) -> void:
 					_remove_bullet(b)
 					break
 			continue
-		if player.position.distance_to(b["pos"]) < 24.0:
+		if player.position.distance_to(b["pos"]) < tile * 0.375:
 			damage_player(int(b["damage"]))
 			_remove_bullet(b)
 
@@ -1093,13 +1111,13 @@ func damage_player(dmg: int) -> void:
 
 func _update_traps(delta: float) -> void:
 	for tr in traps:
-		var tile: Vector2i = tr["tile"]
-		var center: Vector2 = tile_to_world(tile)
+		var tr_tile: Vector2i = tr["tile"]
+		var center: Vector2 = tile_to_world(tr_tile)
 		if String(tr["state"]) == "idle":
-			var tripped := player.position.distance_to(center) < 46.0
+			var tripped := player.position.distance_to(center) < tile * 0.72
 			if not tripped:
 				for g in guards:
-					if g.alive and g.position.distance_to(center) < 46.0:
+					if g.alive and g.position.distance_to(center) < tile * 0.72:
 						tripped = true
 						break
 			if tripped:
@@ -1305,6 +1323,13 @@ func _build_weapon_ui() -> void:
 	_weapon_ui.unlock_with_ad.connect(_on_unlock_with_ad)
 	_weapon_ui.shop_opened.connect(_on_shop_opened)
 	_weapon_ui.shop_closed.connect(_on_shop_closed)
+	_weapon_ui.pause_pressed.connect(_on_pause_pressed)
+
+
+func _build_tutorial() -> void:
+	_tutorial = TutorialMarks.new()
+	add_child(_tutorial)
+	_tutorial.setup(self)
 
 
 func _on_weapon_selected(weapon_id: String) -> void:
@@ -1313,6 +1338,7 @@ func _on_weapon_selected(weapon_id: String) -> void:
 	if ShadowWeapons.set_active(save, weapon_id):
 		_gun_target = null
 		_weapon_ui.refresh()
+		_tutorial.on_weapon_selected()
 		sfx.play("click")
 
 
@@ -1343,6 +1369,7 @@ func _on_shop_opened() -> void:
 	# them through the shop panel.
 	if state == State.PLAYING:
 		_shop_paused = true
+		_tutorial.on_shop_opened()
 		state = State.PAUSED
 
 
@@ -1360,7 +1387,7 @@ func _fire_gun(target: Guard) -> void:
 		return
 	_gun_cooldown = ShadowWeapons.GUN_COOLDOWN
 	var dir: Vector2 = (target.position - player.position).normalized()
-	spawn_bullet(player.position + dir * 30.0, dir, ShadowWeapons.GUN_BULLET_SPEED, 1, false, "player")
+	spawn_bullet(player.position + dir * tile * 0.47, dir, ShadowWeapons.GUN_BULLET_SPEED, 1, false, "player")
 	sfx.play("shoot")
 	noise_at(player.position, 280.0)
 
@@ -1471,6 +1498,7 @@ func _on_double_coins_pressed() -> void:
 func _start_win() -> void:
 	if state != State.PLAYING:
 		return
+	_tutorial.on_level_won()
 	state = State.WON
 	sfx.play("win")
 	_show_banner("CLEARED!", Color(1, 0.85, 0.4))
@@ -1561,6 +1589,7 @@ func _revive() -> void:
 func _on_pause_pressed() -> void:
 	if state != State.PLAYING:
 		return
+	_tutorial.on_pause_opened()
 	state = State.PAUSED
 	sfx.play("click")
 	_show_overlay("PAUSED", Color(0.7, 0.9, 0.9), "Take a breath, shadow.", [
@@ -1667,7 +1696,7 @@ func debug_teleport_behind_guard(i: int) -> void:
 	if i < 0 or i >= guards.size():
 		return
 	var g: Guard = guards[i]
-	var behind: Vector2 = g.position - Vector2(cos(g.facing), sin(g.facing)) * (ELIM_DIST * 0.7)
+	var behind: Vector2 = g.position - Vector2(cos(g.facing), sin(g.facing)) * (elim_dist * 0.7)
 	player.position = behind
 	player.stop()
 

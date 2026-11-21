@@ -8,7 +8,7 @@ files can never drift apart.
 
 Design (from docs/reference/hunter-assassin-research-2026-11-21.md §4-5)
 -----------------------------------------------------------------------
-- Every level is a DENSE maze on one 11x17 portrait screen: crates and
+- Every level is a DENSE maze on one 11x20 portrait screen: crates and
   walls everywhere, corridors 1-2 tiles wide, almost no big empty floor.
   Enforced three ways: a blocked-tile fraction target (32% at L1 rising
   to ~47% at L50), a ban on any 3x3 all-floor square, and a connectivity
@@ -17,7 +17,7 @@ Design (from docs/reference/hunter-assassin-research-2026-11-21.md §4-5)
   up: two guards patrolling side by side in one corridor), L4-6 4,
   L7-9 5, L10 6, L11-20 6, L21-30 7, L31-40 8, L41-50 9. Difficulty
   rises by guard count, overlapping cones, faster patrols, new enemy
-  types and traps -- NOT by map size (every map is 11x17).
+  types and traps -- NOT by map size (every map is 11x20).
 - Patrols are LONG A*-routed paths (7-16 tiles) that roam all over the
   map, not short 2-6 tile straight segments: the guard walks the path
   out and back (ping-pong), so the player has to watch patrols, time
@@ -85,8 +85,8 @@ import random
 import sys
 from pathlib import Path
 
-COLS, ROWS = 11, 17
-INTERIOR = 9 * 15  # x 1..9, y 1..15
+COLS, ROWS = 11, 20
+INTERIOR = 9 * (ROWS - 2)  # x 1..9, y 1..ROWS-2
 FAIL_REASON = ""  # last stage that made gen_level() bail (diagnostics)
 
 # --- level curves -------------------------------------------------------
@@ -355,14 +355,14 @@ def chebyshev(a, b) -> int:
 
 
 def blocked_fraction(grid) -> float:
-    n = sum(1 for y in range(1, 16) for x in range(1, 10)
+    n = sum(1 for y in range(1, ROWS - 1) for x in range(1, 10)
             if grid[y][x] in "#X")
     return n / INTERIOR
 
 
 def open_3x3(grid):
     """First 3x3 all-walkable square in the interior, or None."""
-    for y in range(1, 14):
+    for y in range(1, ROWS - 3):
         for x in range(1, 8):
             if all(walkable(grid, (x + dx, y + dy))
                    for dx in range(3) for dy in range(3)):
@@ -529,11 +529,11 @@ def arch_hall(rng, t):
 def arch_corridors(rng, t):
     g = base_grid()
     for col in (3, 7):
-        for y in range(2, 15):
+        for y in range(2, ROWS - 2):
             g[y][col] = "#"
-        for gap in rng.sample(range(2, 15), 3):
+        for gap in rng.sample(range(2, ROWS - 2), 3):
             g[gap][col] = "."
-    for y in (8,):
+    for y in (10,):
         for x in range(2, 9):
             g[y][x] = "#"
         for gap in rng.sample(range(2, 9), 2):
@@ -591,7 +591,7 @@ def repair_connectivity(grid, rng):
     walkable tile. Returns True when fully connected."""
     dirs = ((1, 0), (-1, 0), (0, 1), (0, -1))
     for _ in range(200):
-        walk = [(x, y) for y in range(1, 16) for x in range(1, 10)
+        walk = [(x, y) for y in range(1, ROWS - 1) for x in range(1, 10)
                 if walkable(grid, (x, y))]
         if not walk:
             return False
@@ -604,7 +604,7 @@ def repair_connectivity(grid, rng):
         for d in disconnected:
             for dx, dy in dirs:
                 w = (d[0] + dx, d[1] + dy)
-                if not (1 <= w[0] <= 9 and 1 <= w[1] <= 15):
+                if not (1 <= w[0] <= 9 and 1 <= w[1] <= ROWS - 2):
                     continue
                 if grid[w[1]][w[0]] not in "#X":
                     continue
@@ -620,7 +620,7 @@ def repair_connectivity(grid, rng):
             d = disconnected[0]
             for dx, dy in dirs:
                 w = (d[0] + dx, d[1] + dy)
-                if (1 <= w[0] <= 9 and 1 <= w[1] <= 15
+                if (1 <= w[0] <= 9 and 1 <= w[1] <= ROWS - 2
                         and grid[w[1]][w[0]] in "#X"):
                     grid[w[1]][w[0]] = "."
                     carved = True
@@ -641,7 +641,7 @@ def break_open_squares(grid, rng):
 
 
 def _fully_connected(grid) -> bool:
-    walk = [(x, y) for y in range(1, 16) for x in range(1, 10)
+    walk = [(x, y) for y in range(1, ROWS - 1) for x in range(1, 10)
             if walkable(grid, (x, y))]
     return bool(walk) and len(bfs_seen(grid, walk[0])) == len(walk)
 
@@ -652,7 +652,7 @@ def _top_up_safe(grid, rng, target):
     for _ in range(300):
         if blocked_fraction(grid) >= target:
             return True
-        x, y = rng.randint(1, 9), rng.randint(1, 15)
+        x, y = rng.randint(1, 9), rng.randint(1, ROWS - 2)
         if grid[y][x] != ".":
             continue
         grid[y][x] = "X"
@@ -666,7 +666,7 @@ def _top_up_random(grid, rng, target):
     for _ in range(300):
         if blocked_fraction(grid) >= target:
             return
-        x, y = rng.randint(1, 9), rng.randint(1, 15)
+        x, y = rng.randint(1, 9), rng.randint(1, ROWS - 2)
         if grid[y][x] == ".":
             grid[y][x] = "X"
 
@@ -680,13 +680,13 @@ def densify(grid, rng, target):
     tries = 0
     while blocked_fraction(grid) < target and tries < 600:
         tries += 1
-        x, y = rng.randint(1, 9), rng.randint(1, 15)
+        x, y = rng.randint(1, 9), rng.randint(1, ROWS - 2)
         if grid[y][x] != ".":
             continue
         if rng.random() < 0.4:
             dx, dy = rng.choice([(1, 0), (0, 1)])
             nx, ny = x + dx, y + dy
-            if 1 <= nx <= 9 and 1 <= ny <= 15 and grid[ny][nx] == ".":
+            if 1 <= nx <= 9 and 1 <= ny <= ROWS - 2 and grid[ny][nx] == ".":
                 grid[ny][nx] = "X"
         grid[y][x] = "X"
     tries = 0
@@ -732,7 +732,7 @@ def _place_double_kill(grid, rng, speed, vision, half):
     line and both go down for a Double Kill. Returns (guardA, guardB,
     route_tiles) or None when no parallel corridor exists."""
     cands = []
-    for y in range(1, 15):
+    for y in range(1, ROWS - 2):
         for x0 in range(1, 7):
             if all(walkable(grid, (x, y)) and walkable(grid, (x, y + 1))
                    for x in range(x0, x0 + 4)):
@@ -778,7 +778,7 @@ def gen_level(n: int, seed: int, target_override=None):
         guards.extend(dk_guards)
         route_set.update(dk_route)
         start_gi = 2
-    bands = [(1, 5), (6, 10), (11, 15)]
+    bands = [(1, 6), (7, 12), (13, 18)]
     # Patrol length scales with guard count so the map is never paved
     # over: few guards roam far (up to 16 tiles), many guards roam
     # shorter loops (down to 5) — still 2-4x the old 2-6 tile segments,
@@ -801,7 +801,7 @@ def gen_level(n: int, seed: int, target_override=None):
             if rng.random() < 0.7:
                 sx, sy = rng.randint(1, 9), rng.randint(band[0], band[1])
             else:
-                sx, sy = rng.randint(1, 9), rng.randint(1, 15)
+                sx, sy = rng.randint(1, 9), rng.randint(1, ROWS - 2)
             s = (sx, sy)
             if not walkable(grid, s) or s in route_set:
                 continue
@@ -850,9 +850,9 @@ def gen_level(n: int, seed: int, target_override=None):
              math.radians(g["half"])) for g in guards]
     for _ in range(400):
         if _ < 200:
-            px, py = rng.randint(1, 9), rng.randint(13, 15)
+            px, py = rng.randint(1, 9), rng.randint(16, 18)
         else:
-            px, py = rng.randint(1, 9), rng.randint(1, 15)
+            px, py = rng.randint(1, 9), rng.randint(1, ROWS - 2)
         if not walkable(grid, (px, py)):
             continue
         if (px, py) in route_set:
@@ -876,7 +876,7 @@ def gen_level(n: int, seed: int, target_override=None):
     rcx = sum(t[0] for t in route_list) / len(route_list)
     rcy = sum(t[1] for t in route_list) / len(route_list)
     key_cands = []
-    for y in range(1, 16):
+    for y in range(1, ROWS - 1):
         for x in range(1, 10):
             if grid[y][x] != ".":
                 continue
@@ -929,7 +929,7 @@ def gen_level(n: int, seed: int, target_override=None):
         kind = "bomb" if ti % 2 == 0 else "cryo"
         got = False
         for _ in range(300):
-            x, y = rng.randint(1, 9), rng.randint(1, 15)
+            x, y = rng.randint(1, 9), rng.randint(1, ROWS - 2)
             if grid[y][x] != ".":
                 continue
             if (x, y) in route_set:
@@ -956,7 +956,7 @@ def gen_level(n: int, seed: int, target_override=None):
     # bushes (walkable 'B' hiding spots) before coins/gems claim tiles
     for _ in range(bush_count(n, rng)):
         for _ in range(50):
-            x, y = rng.randint(1, 9), rng.randint(1, 15)
+            x, y = rng.randint(1, 9), rng.randint(1, ROWS - 2)
             if grid[y][x] != ".":
                 continue
             if (x, y) in route_set or manhattan((x, y), player) < 2:
@@ -974,7 +974,7 @@ def gen_level(n: int, seed: int, target_override=None):
     tries = 0
     while placed < ncoins and tries < 800:
         tries += 1
-        x, y = rng.randint(1, 9), rng.randint(1, 15)
+        x, y = rng.randint(1, 9), rng.randint(1, ROWS - 2)
         if grid[y][x] != ".":
             continue
         if manhattan((x, y), player) < 2:
@@ -988,7 +988,7 @@ def gen_level(n: int, seed: int, target_override=None):
         return None
     # gems: riskier -- prefer tiles 1-2 away from a patrol route, else any
     ngems = gem_count(n)
-    risky = [(x, y) for y in range(1, 16) for x in range(1, 10)
+    risky = [(x, y) for y in range(1, ROWS - 1) for x in range(1, 10)
              if grid[y][x] == "."
              and 1 <= min((manhattan((x, y), rt) for rt in route_set),
                           default=99) <= 2
@@ -1004,7 +1004,7 @@ def gen_level(n: int, seed: int, target_override=None):
     tries = 0
     while placed < ngems and tries < 800:
         tries += 1
-        x, y = rng.randint(1, 9), rng.randint(1, 15)
+        x, y = rng.randint(1, 9), rng.randint(1, ROWS - 2)
         if grid[y][x] != ".":
             continue
         if manhattan((x, y), player) < 2:

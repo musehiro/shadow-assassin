@@ -1,8 +1,9 @@
 extends SceneTree
 ## Headless test for Shadow Assassin v3 weapons + unlock + ads.
 ## Run: godot --headless -s res://tests/weapons_test.gd
-## Exercises: save defaults (knife owned / gun locked), weapon UI dock
-## (right edge, locked gun shows lock + 500), coin unlock (fail when
+## Exercises: save defaults (knife owned / gun locked), bottom control
+## bar (full width at the bottom, picture icons, locked gun shows the
+## locked-gun picture + 500), coin unlock (fail when
 ## broke, succeed at 500), gun fire (tracer, kill, cooldown gate),
 ## no contact kill while the gun is equipped, knife contact kill still
 ## works, double-coins ad flow, interstitial bookkeeping, and every
@@ -61,23 +62,33 @@ func _process(_delta: float) -> bool:
 				return _fail("active weapon must default to knife")
 			if ShadowWeapons.GUN_PRICE != 500:
 				return _fail("gun price must be 500 coins, got %d" % ShadowWeapons.GUN_PRICE)
-			# --- weapon UI dock: right edge, below the HUD bar ---
+			# --- bottom control bar: full width, at the bottom, picture icons ---
 			var ui = game._weapon_ui
 			if ui == null:
 				return _fail("weapon UI was not built")
 			if ui._slot_buttons.size() != 2:
-				return _fail("dock must have 2 weapon slots, got %d" % ui._slot_buttons.size())
-			if ui._dock.position.x < 600.0:
-				return _fail("dock must sit on the right edge, x=%s" % str(ui._dock.position.x))
-			if ui._dock.position.y < 110.0:
-				return _fail("dock must sit below the HUD bar, y=%s" % str(ui._dock.position.y))
+				return _fail("bar must have 2 weapon slots, got %d" % ui._slot_buttons.size())
+			var view: Vector2 = game._view_size
+			if ui._bar.position.y < view.y - ShadowGame.BAR_H - 1.0:
+				return _fail("bar must sit at the bottom, y=%s view=%s" % [str(ui._bar.position.y), str(view)])
+			if ui._bar.size.x < view.x - 1.0 or ui._bar.size.y < ShadowGame.BAR_H - 1.0:
+				return _fail("bar must span the full width, size=%s view=%s" % [str(ui._bar.size), str(view)])
+			# Picture icons, never emoji: locked gun shows the locked-gun
+			# picture, knife shows the knife picture, pause the pause picture.
+			var knife_btn: Button = ui._slot_buttons["knife"]
+			if knife_btn.icon == null or not String(knife_btn.icon.resource_path).contains("icon_knife"):
+				return _fail("knife slot must show the knife picture icon")
 			var gun_btn: Button = ui._slot_buttons["gun"]
-			if gun_btn.text != "🔒":
-				return _fail("locked gun slot must show a lock, got '%s'" % gun_btn.text)
+			if gun_btn.icon == null or not String(gun_btn.icon.resource_path).contains("icon_gun_locked"):
+				return _fail("locked gun slot must show the locked-gun picture icon")
+			if gun_btn.text.contains("🔒") or gun_btn.text.contains("🔫") or knife_btn.text.contains("🔪"):
+				return _fail("no emoji allowed on weapon buttons")
 			var gun_lbl: Label = ui._slot_labels["gun"]
 			if not String(gun_lbl.text).contains("500"):
 				return _fail("locked gun slot must show the 500 price, got '%s'" % gun_lbl.text)
-			print("[WEAPONS] defaults + dock OK (dock at %s, gun locked, 500 coins)" % str(ui._dock.position))
+			if ui._pause_button.icon == null or not String(ui._pause_button.icon.resource_path).contains("icon_pause"):
+				return _fail("pause button must show the pause picture icon")
+			print("[WEAPONS] defaults + bottom bar OK (bar at y=%s, gun locked, 500 coins)" % str(ui._bar.position.y))
 			# --- coin unlock: broke -> fail, 500 coins -> succeed ---
 			main.save["total_coins"] = 0
 			if ShadowWeapons.unlock_with_coins(main.save, "gun"):
@@ -94,8 +105,8 @@ func _process(_delta: float) -> bool:
 			if not ShadowWeapons.set_active(main.save, "gun"):
 				return _fail("switching to the owned gun must succeed")
 			game._weapon_ui.refresh()
-			if ui._slot_buttons["gun"].text != "🔫":
-				return _fail("unlocked gun slot must show the gun icon")
+			if ui._slot_buttons["gun"].icon == null or not String(ui._slot_buttons["gun"].icon.resource_path).contains("icon_gun.png"):
+				return _fail("unlocked gun slot must show the gun picture icon")
 			print("[WEAPONS] coin unlock OK (500 deducted, gun owned + equipped)")
 			# --- gun fire: cooldown gate, then a real shot ---
 			game.debug_teleport_behind_guard(0)

@@ -10,7 +10,6 @@ extends Node2D
 
 enum State { PATROL, SUSPECT, ALERT, RETURN }
 
-const TILE := 64
 const DEFAULT_VISION_RANGE := 235.0 # px (~3.67 tiles), levels 1-10
 const DEFAULT_VISION_HALF := 0.78539816339 # 45 degrees, levels 1-10
 const CHASE_MULT := 1.6
@@ -92,7 +91,7 @@ func setup(p_game: ShadowGame, p_tile: Vector2i, p_patrol: Array, p_speed: float
 	patrol_speed = p_speed
 	type = p_type if TYPE_STATS.has(p_type) else "basic"
 	var stats: Dictionary = TYPE_STATS[type]
-	vision_range = p_vision_tiles * TILE * float(stats["vision_mult"])
+	vision_range = p_vision_tiles * game.tile * float(stats["vision_mult"])
 	vision_half = deg_to_rad(p_vision_half_deg) * float(stats["half_mult"])
 	cash_value = int(stats["cash"])
 	gem_value = int(stats["gems"])
@@ -102,7 +101,7 @@ func setup(p_game: ShadowGame, p_tile: Vector2i, p_patrol: Array, p_speed: float
 	var tex_path: String = TYPE_TEXTURES.get(type, fallback)
 	_sprite = Sprite2D.new()
 	_sprite.texture = load_tex(tex_path, fallback)
-	_sprite.scale = Vector2(0.62, 0.62)
+	_sprite.scale = Vector2(0.62, 0.62) * (game.tile / 64.0)
 	_sprite.modulate = stats["tint"]
 	_sprite.z_index = 6
 	add_child(_sprite)
@@ -116,19 +115,20 @@ func setup(p_game: ShadowGame, p_tile: Vector2i, p_patrol: Array, p_speed: float
 		var pts := PackedVector2Array()
 		for i in range(9):
 			var a: float = -PI / 2.0 + (float(i) / 8.0 - 0.5) * PI * 0.9
-			pts.append(Vector2(cos(a), sin(a)) * 34.0)
+			pts.append(Vector2(cos(a), sin(a)) * 34.0 * (game.tile / 64.0))
 		_shield_arc.polygon = pts
 		_shield_arc.color = Color(0.6, 0.8, 1.0, 0.55)
 		_shield_arc.z_index = 7
 		add_child(_shield_arc)
 	# red diamond target marker above the head
 	_marker = Polygon2D.new()
-	_marker.polygon = PackedVector2Array([Vector2(0, -52), Vector2(10, -42), Vector2(0, -32), Vector2(-10, -42)])
+	var _ms: float = game.tile / 64.0
+	_marker.polygon = PackedVector2Array([Vector2(0, -52) * _ms, Vector2(10, -42) * _ms, Vector2(0, -32) * _ms, Vector2(-10, -42) * _ms])
 	_marker.color = Color(1, 0.25, 0.3)
 	_marker.z_index = 7
 	add_child(_marker)
 	_label = Label.new()
-	_label.position = Vector2(-14, -84)
+	_label.position = Vector2(-14, -84) * (game.tile / 64.0)
 	_label.add_theme_font_size_override("font_size", 30)
 	_label.add_theme_color_override("font_color", Color(1, 0.2, 0.2))
 	_label.add_theme_color_override("font_outline_color", Color(0, 0, 0))
@@ -173,7 +173,7 @@ func _process(delta: float) -> void:
 		return
 	_bob_t += delta
 	_marker.position.y = sin(_bob_t * 3.0) * 3.0
-	var speed_px: float = patrol_speed * TILE
+	var speed_px: float = patrol_speed * game.tile
 	match state:
 		State.PATROL:
 			if _pause_timer > 0.0:
