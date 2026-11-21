@@ -41,6 +41,16 @@ jobs:
           git clone https://github.com/musehiro/shadow-assassin.git .
           git checkout ${{ github.sha }}
 
+      - name: Install build tools
+        run: |
+          set -e
+          # The godot-ci container has no curl/unzip, and several steps below
+          # need them (templates download, Android SDK download, release upload).
+          if ! command -v curl >/dev/null 2>&1 || ! command -v unzip >/dev/null 2>&1; then
+            apt-get update -qq && apt-get install -y -qq curl unzip
+          fi
+          curl --version | head -1
+
       - name: Install Godot 4.3 export templates
         run: |
           set -e
